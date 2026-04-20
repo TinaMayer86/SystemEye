@@ -1,9 +1,0 @@
-{
-  "Database": {
-    "Server": "localhost",
-    "Port": 3306,
-    "DatabaseName": "SystemEye_DB",
-    "User": "root",
-    "Password": "root"
-  }
-}
