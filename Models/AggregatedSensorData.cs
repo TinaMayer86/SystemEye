@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace SystemEye.Models
+﻿namespace SystemEye.Models
 {
     /// <summary>
     /// Repräsentiert aggregierte Sensordaten für einen 

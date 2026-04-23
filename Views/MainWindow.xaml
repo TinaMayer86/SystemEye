@@ -1,0 +1,249 @@
+﻿<Window x:Class="SystemEye.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+        xmlns:local="clr-namespace:SystemEye"
+        mc:Ignorable="d"
+        Title="SystemEye" Height="700" Width="1100"
+        WindowStyle="None" 
+        AllowsTransparency="True"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        FontFamily="{materialDesign:MaterialDesignFont}">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0"
+                      ResizeBorderThickness="5"
+                      GlassFrameThickness="0"
+                      CornerRadius="25" />
+    </WindowChrome.WindowChrome>
+
+    <materialDesign:DialogHost>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <materialDesign:ColorZone Mode="PrimaryMid"
+                                      Padding="8"
+                                      materialDesign:ElevationAssist.Elevation="Dp4"
+                                      MouseDown="TitleBar_MouseDown">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right"
+                                Orientation="Horizontal">
+                        <Button x:Name="MinimizeButton"
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                Foreground="White"
+                                Click="MinimizeButton_Click">
+                            <materialDesign:PackIcon Kind="WindowMinimize" />
+                        </Button>
+                        <Button x:Name="MaximizeButton"
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                Foreground="White"
+                                Click="MaximizeButton_Click">
+                            <materialDesign:PackIcon x:Name="MaximizeIcon"
+                                                     Kind="WindowMaximize" />
+                        </Button>
+                        <Button x:Name="CloseButton"
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                Foreground="White"
+                                Click="CloseButton_Click">
+                            <materialDesign:PackIcon Kind="Close" />
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <materialDesign:PackIcon Kind="MonitorEye"
+                                                 Width="24" Height="24"
+                                                 Margin="8,0,8,0"
+                                                 Foreground="White"/>
+                        <TextBlock Text="SystemEye Monitor"
+                                   FontWeight="Bold" 
+                                   VerticalAlignment="Center" 
+                                   Foreground="White"/>
+                    </StackPanel>
+                </DockPanel>
+            </materialDesign:ColorZone>
+
+            <TabControl Grid.Row="1" 
+                        Style="{StaticResource MaterialDesignTabControl}"
+                        materialDesign:ColorZoneAssist.Mode="PrimaryMid">
+
+                <TabItem Header="1. Informationen"
+                         Width="auto">
+                    <Grid Margin="20">
+                        <materialDesign:Card Padding="16"
+                                             materialDesign:ElevationAssist.Elevation="Dp1"
+                                             UniformCornerRadius="16">
+                            <StackPanel>
+                                <TextBlock Text="Hardware-Übersicht"
+                                           Style="{StaticResource MaterialDesignHeadline5TextBlock}"
+                                           Margin="0,0,0,16"/>
+                                <ListBox ItemsSource="{Binding SystemInformation}"
+                                         BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal"
+                                                        Margin="0,4">
+                                                <materialDesign:PackIcon Kind="ChevronRight"
+                                                                         Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                                         VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding}"
+                                                           Margin="8,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="16"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </materialDesign:Card>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="2. Live" 
+                         Width="auto">
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <WrapPanel x:Name="ChartsWrapPanel"
+                                       Orientation="Horizontal"
+                                       HorizontalAlignment="Center"
+                                       Margin="10"/>
+                        </ScrollViewer>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="3. Historie"
+                         Width="auto">
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Button Command="{Binding LoadDatabaseDataCommand}" 
+                                Content="DATEN AUS MYSQL LADEN" 
+                                HorizontalAlignment="Left" Margin="0,0,0,16" 
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="10"/>
+
+                        <materialDesign:Card Grid.Row="1"
+                                             materialDesign:ElevationAssist.Elevation="Dp1"
+                                             UniformCornerRadius="16">
+                            <DataGrid ItemsSource="{Binding DatabaseRecords}" 
+                                      AutoGenerateColumns="False" 
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      Background="Transparent">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Zeitpunkt" Binding="{Binding Timestamp, StringFormat='dd.MM HH:mm:ss'}"/>
+                                    <DataGridTextColumn Header="Hardware" Binding="{Binding HardwareType}"/>
+                                    <DataGridTextColumn Header="Sensor" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="Min" Binding="{Binding MinValue, StringFormat='N1'}"/>
+                                    <DataGridTextColumn Header="Max" Binding="{Binding MaxValue, StringFormat='N1'}"/>
+                                    <DataGridTextColumn Header="Durchschnitt" Binding="{Binding AvgValue, StringFormat='N1'}"/>
+                                    <DataGridTextColumn Header="Einheit" Binding="{Binding Format}"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </materialDesign:Card>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="4. Einstellungen"
+                         Width="auto">
+                    <Grid Margin="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="320"/>
+                        </Grid.ColumnDefinitions>
+
+                        <materialDesign:Card Padding="16"
+                                             Margin="0,0,10,0"
+                                             materialDesign:ElevationAssist.Elevation="Dp1"
+                                             UniformCornerRadius="16">
+                            <StackPanel>
+                                <TextBlock Text="Sichtbare Sensoren"
+                                           Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                                           Margin="0,0,0,10"/>
+                                <ScrollViewer MaxHeight="500">
+                                    <ItemsControl ItemsSource="{Binding AvailableSensors}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsEnabled}"
+                                                          Margin="0,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding HardwareType, StringFormat=' ({0})'}"
+                                                                   Opacity="0.5"
+                                                                   FontSize="12"/>
+                                                    </StackPanel>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </materialDesign:Card>
+
+                        <StackPanel Grid.Column="1">
+                            <materialDesign:Card Padding="16"
+                                                 Margin="0,0,0,16"
+                                                 materialDesign:ElevationAssist.Elevation="Dp1"
+                                                 UniformCornerRadius="16">
+                                <StackPanel>
+                                    <TextBlock Text="Darstellung"
+                                               Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                                               Margin="0,0,0,10"/>
+                                    <DockPanel>
+                                        <TextBlock Text="Dunkles Design"
+                                                   VerticalAlignment="Center"/>
+                                        <ToggleButton x:Name="ThemeToggleButton" 
+                                                      Style="{StaticResource MaterialDesignSwitchToggleButton}" 
+                                                      DockPanel.Dock="Right"
+                                                      HorizontalAlignment="Right"
+                                                      IsChecked="True"
+                                                      Click="ThemeToggleButton_Click"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <materialDesign:Card Padding="16"
+                                                 Background="{DynamicResource PrimaryHueLightBrush}"
+                                                 materialDesign:ElevationAssist.Elevation="Dp1"
+                                                 UniformCornerRadius="16">
+                                <StackPanel>
+                                    <materialDesign:PackIcon Kind="FileExport"
+                                                             Width="48"
+                                                             Height="48"
+                                                             HorizontalAlignment="Center"
+                                                             Margin="0,0,0,10"/>
+                                    <TextBlock Text="Daten-Export"
+                                               HorizontalAlignment="Center"
+                                               Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
+                                    <TextBlock Text="Speichert aktuelle Werte als Textdatei auf dem Desktop."
+                                               TextWrapping="Wrap"
+                                               TextAlignment="Center"
+                                               Margin="0,10"/>
+                                    <Button Command="{Binding ExportLogCommand}" 
+                                            Content="Jetzt Exportieren" 
+                                            Margin="0,10,0,0" 
+                                            Style="{StaticResource MaterialDesignRaisedDarkButton}"
+                                            materialDesign:ButtonAssist.CornerRadius="10"/>
+                                </StackPanel>
+                            </materialDesign:Card>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </materialDesign:DialogHost>
+</Window>

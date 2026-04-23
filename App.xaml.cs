@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Windows;
+using SystemEye.Models;
 using SystemEye.Services;
+using SystemEye.ViewModels;
 
 namespace SystemEye
 {
@@ -26,16 +28,36 @@ namespace SystemEye
             {
                 loggingBuilder.ClearProviders();
                 loggingBuilder.AddDebug();
-
-                loggingBuilder.AddFile("Logs/log-{Date}.txt", LogLevel.Warning);
+                loggingBuilder.AddFile("Logs/SystemEye_{Date}.txt", LogLevel.Warning);
             });
+
+            // Basis-Services
             services.AddSingleton<ConfigService>();
+            services.AddSingleton<HardwareService>();
+            services.AddSingleton<ExportService>();
 
-            var configService = new ConfigService();
-            var appConfig = configService.LoadConfigAsync().GetAwaiter().GetResult();
 
+            AppConfig appConfig;
+            try
+            {
+                // Lädt die Datei beim Start
+                var configService = new ConfigService();
+                appConfig = configService.LoadConfigAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+                appConfig = new AppConfig(); // Fallback 
+            }
+
+            services.AddSingleton(provider =>
+            {
+                var logger = provider.GetRequiredService<ILogger<DatabaseService>>();
+                return new DatabaseService(appConfig.Database, logger);
+            });
+            services.AddTransient<MainViewModel>();
 
             return services.BuildServiceProvider();
         }
+
     }
 }
