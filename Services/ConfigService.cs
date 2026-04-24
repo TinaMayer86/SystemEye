@@ -29,30 +29,25 @@ namespace SystemEye.Services
         {
             if (!File.Exists(_configPath))
             {
-                _logger?.LogWarning("Die Konfigurationsdatei wurde unter {ConfigPath} nicht gefunden. Es werden Standardwerte verwendet.", _configPath);
+                _logger?.LogWarning("Konfigurationsdatei nicht gefunden: {ConfigPath}", _configPath);
                 return new AppConfig();
             }
 
             try
             {
                 string jsonString = await File.ReadAllTextAsync(_configPath);
-                var config = JsonSerializer.Deserialize<AppConfig>(jsonString);
 
-                if (config == null)
-                {
-                    _logger?.LogError("Die config.json war leer. Es werden Standardwerte verwendet.");
-                    return new AppConfig();
-                }
+                // WICHTIG: PropertyNameCaseInsensitive auf true setzen!
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var config = JsonSerializer.Deserialize<AppConfig>(jsonString, options);
+
+                if (config == null) return new AppConfig();
+
                 return config;
-            }
-            catch (JsonException ex)
-            {
-                _logger?.LogError(ex, "Formatierungsfehler in der config.json! Bitte prüfe die Datei auf fehlende Kommas oder Klammern. Standardwerte werden geladen.");
-                return new AppConfig();
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Unbekannter Fehler beim Lesen der Konfigurationsdatei.");
+                _logger?.LogError(ex, "Fehler beim Laden der Konfiguration.");
                 return new AppConfig();
             }
         }

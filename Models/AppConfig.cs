@@ -20,15 +20,11 @@
     /// </returns>
     public class DatabaseConfig
     {
-        public string Server { get; set; } = string.Empty;
-        public int Port { get; set; } = 3306; //Standardport
-        public string DatabaseName { get; set; } = string.Empty;
-        public string User { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
 
         public string GetConnectionString()
         {
-            return $"Server={Server};Port={Port};Database={DatabaseName};Uid={User};Pwd={Password}";
+            return $"Data Source={FilePath}";
         }
     }
 }

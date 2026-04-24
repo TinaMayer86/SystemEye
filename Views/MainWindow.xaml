@@ -121,36 +121,48 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="3. Historie"
-                         Width="auto">
+                <TabItem Header="Historie">
                     <Grid Margin="16">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <Button Command="{Binding LoadDatabaseDataCommand}" 
-                                Content="DATEN AUS MYSQL LADEN" 
-                                HorizontalAlignment="Left" Margin="0,0,0,16" 
-                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                materialDesign:ButtonAssist.CornerRadius="10"/>
+                        <StackPanel Grid.Row="0"
+                                    Orientation="Horizontal"
+                                    Margin="0,0,0,16">
+                            <materialDesign:Chip Content="{Binding NextUpdateText}"
+                                                 ToolTip="Zeit bis zur nächsten Datenbank-Speicherung"
+                                                 Background="{DynamicResource PrimaryHueLightBrush}"
+                                                 Foreground="{DynamicResource PrimaryHueLightForegroundBrush}">
+                            <materialDesign:Chip.Icon>
+                                <materialDesign:PackIcon Kind="Clock" />
+                            </materialDesign:Chip.Icon>
+                            </materialDesign:Chip>
+
+                            <TextBlock Text="Nächste automatische Aktualisierung" 
+                                       VerticalAlignment="Center" 
+                                       Margin="12,0,0,0" 
+                                       Style="{StaticResource MaterialDesignBody2TextBlock}"
+                                       Opacity="0.7"/>
+                        </StackPanel>
 
                         <materialDesign:Card Grid.Row="1"
-                                             materialDesign:ElevationAssist.Elevation="Dp1"
-                                             UniformCornerRadius="16">
-                            <DataGrid ItemsSource="{Binding DatabaseRecords}" 
-                                      AutoGenerateColumns="False" 
+                                             UniformCornerRadius="15"
+                                             Padding="8">
+                            <DataGrid ItemsSource="{Binding DatabaseRecords}"
+                                      AutoGenerateColumns="False"
                                       IsReadOnly="True"
-                                      CanUserAddRows="False"
-                                      Background="Transparent">
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      VerticalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Zeitpunkt" Binding="{Binding Timestamp, StringFormat='dd.MM HH:mm:ss'}"/>
-                                    <DataGridTextColumn Header="Hardware" Binding="{Binding HardwareType}"/>
+                                    <DataGridTextColumn Header="Zeitpunkt" Binding="{Binding Timestamp, StringFormat='dd.MM HH:mm:ss'}" Width="Auto"/>
                                     <DataGridTextColumn Header="Sensor" Binding="{Binding Name}" Width="*"/>
-                                    <DataGridTextColumn Header="Min" Binding="{Binding MinValue, StringFormat='N1'}"/>
-                                    <DataGridTextColumn Header="Max" Binding="{Binding MaxValue, StringFormat='N1'}"/>
-                                    <DataGridTextColumn Header="Durchschnitt" Binding="{Binding AvgValue, StringFormat='N1'}"/>
-                                    <DataGridTextColumn Header="Einheit" Binding="{Binding Format}"/>
+                                    <DataGridTextColumn Header="Min" Binding="{Binding MinValue, StringFormat='F1'}" Width="60"/>
+                                    <DataGridTextColumn Header="Max" Binding="{Binding MaxValue, StringFormat='F1'}" Width="60"/>
+                                    <DataGridTextColumn Header="Ø" Binding="{Binding AvgValue, StringFormat='F1'}" Width="60"/>
+                                    <DataGridTextColumn Header="Einheit" Binding="{Binding Format}" Width="60"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </materialDesign:Card>

@@ -17,7 +17,7 @@ namespace SystemEye.Services
         {
             try
             {
-                using var writer = new StreamWriter(filePath, append: false); // false: Alte Datei überschreiben
+                using var writer = new StreamWriter(filePath, append: false); // false == Alte Datei überschreiben
 
                 await writer.WriteLineAsync("--- SystemEye Export ---");
                 await writer.WriteLineAsync($"Erstellt am: {DateTime.Now:dd.MM.yyyy}");

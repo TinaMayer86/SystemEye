@@ -1,9 +1,14 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Text.Json;
+using System.Linq;
+using System.Text.Json; // Hinzugefügt für das Laden der Sensor-Config
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using SystemEye.Models;
 using SystemEye.Services;
@@ -12,9 +17,13 @@ namespace SystemEye.ViewModels
 {
     public partial class MainViewModel : ObservableObject
     {
+        // Konstante für das Speicher-Intervall
+        private static readonly int SECOND_COUNTER = 60;
+
         private readonly HardwareService _hardwareService;
         private readonly DatabaseService _databaseService;
         private readonly ExportService _exportService;
+        private readonly ConfigService _configService;
         private readonly ILogger<MainViewModel> _logger;
 
         private readonly string _sensorSettingPath = Path.Combine("Config", "sensors.json");
@@ -29,10 +38,14 @@ namespace SystemEye.ViewModels
         private ObservableCollection<SensorConfigModel> _availableSensors = new();
 
         [ObservableProperty]
-        private ObservableCollection<AggregatedSensorData> _aggregatedSensorDatas = new();
+        private ObservableCollection<AggregatedSensorData> _databaseRecords = new();
+
+        [ObservableProperty]
+        private string _nextUpdateText = $"{SECOND_COUNTER}s";
 
         private readonly List<SensorDataModel> _minuteBuffer = new();
         private DateTime _lastDbSave = DateTime.Now;
+        private int _secondsUntilUpdate = SECOND_COUNTER;
 
         public event Action? DataUpdated;
 
@@ -40,139 +53,180 @@ namespace SystemEye.ViewModels
             HardwareService hardwareService,
             DatabaseService databaseService,
             ExportService exportService,
+            ConfigService configService,
             ILogger<MainViewModel> logger)
         {
             _hardwareService = hardwareService;
             _databaseService = databaseService;
             _exportService = exportService;
+            _configService = configService;
             _logger = logger;
 
-            _ = InitializeAndStartMonitoringAsync();
+            Task.Run(InitializeAndStartMonitoringAsync);
         }
 
         private async Task InitializeAndStartMonitoringAsync()
         {
-            var sysInfo = await _hardwareService.GetSystemInformationAsync();
+            // Systeminformationen laden
+            var info = await _hardwareService.GetSystemInformationAsync();
             Application.Current.Dispatcher.Invoke(() =>
             {
-                foreach (var info in sysInfo)
-                {
-                    SystemInformation.Add(info);
-                }
+                SystemInformation.Clear();
+                foreach (var line in info) SystemInformation.Add(line);
             });
 
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            // Sensorkonfiguration laden
+            await LoadSensorConfigAsync();
+
+            //  Alte Daten aus der DB laden
+            await LoadDatabaseDataAsync();
+
+            // Monitoring Timer starten (0.5s Takt)
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(0.5));
+            int halfSecondTicks = 0;
+
             while (await timer.WaitForNextTickAsync())
             {
-                try
+                await UpdateSensorsAsync();
+
+                // Countdown-Logik
+                halfSecondTicks++;
+                if (halfSecondTicks >= 2)
                 {
-                    await UpdateSensorsAsync();
+                    UpdateCountdown();
+                    halfSecondTicks = 0;
                 }
-                catch (Exception ex)
+
+                // Prüft ob Intervall für DB-Speicherung erreicht
+                if ((DateTime.Now - _lastDbSave).TotalSeconds >= SECOND_COUNTER)
                 {
-                    _logger.LogError(ex, "Kritischer Fehler im Hintergrund-Timer (Sensor-Update).");
+                    await AggregateAndSaveToDatabaseAsync();
+                    _lastDbSave = DateTime.Now;
                 }
+            }
+        }
+
+        private void UpdateCountdown()
+        {
+            _secondsUntilUpdate--;
+            if (_secondsUntilUpdate <= 0)
+            {
+                NextUpdateText = "Speichere...";
+            }
+            else
+            {
+                NextUpdateText = $"{_secondsUntilUpdate}s";
             }
         }
 
         private async Task UpdateSensorsAsync()
         {
-            var rawSensors = await _hardwareService.GetImportantSensorsAsync();
+            var sensors = await _hardwareService.GetImportantSensorsAsync();
+
+            // Filtern nach aktivierten Sensoren
+            var enabledSensors = sensors.Where(s =>
+                AvailableSensors.Any(config => config.Name == s.Name && config.IsEnabled)).ToList();
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                if (AvailableSensors.Count == 0)
-                {
-                    LoadSensorSettings(rawSensors);
-                }
-
-                var activeSensorNames = AvailableSensors.Where(s => s.IsEnabled).Select(s => s.Name).ToHashSet();
-                var filteredSensors = rawSensors.Where(s => activeSensorNames.Contains(s.Name)).ToList();
-
                 CurrentSensors.Clear();
-                foreach (var sensor in filteredSensors)
+                foreach (var s in enabledSensors)
                 {
-                    CurrentSensors.Add(sensor);
+                    CurrentSensors.Add(s);
+                    _minuteBuffer.Add(s);
                 }
-
-                DataUpdated?.Invoke();
             });
 
-            _minuteBuffer.AddRange(rawSensors);
-
-            if ((DateTime.Now - _lastDbSave).TotalSeconds >= 60)
-            {
-                await AggregateAndSaveToDatabaseAsync();
-                _lastDbSave = DateTime.Now;
-            }
-        }
-
-        private void LoadSensorSettings(List<SensorDataModel> rawSensors)
-        {
-            List<string> savedActiveSensors = new();
-
-            if (File.Exists(_sensorSettingPath))
-            {
-                try
-                {
-                    var sensorJson = File.ReadAllText(_sensorSettingPath);
-                    savedActiveSensors = JsonSerializer.Deserialize<List<string>>(sensorJson) ?? new();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Konnte sensors.json nicht laden. Es werden alle Sensoren aktiviert.");
-                }
-            }
+            DataUpdated?.Invoke();
         }
 
         private async Task AggregateAndSaveToDatabaseAsync()
         {
-            if (_minuteBuffer.Count == 0) return;
-            var aggregatedData = new List<AggregatedSensorData>();
-            var currentTime = DateTime.Now;
-            var groupedSensors = _minuteBuffer.GroupBy(s => s.Name);
+            // NaN filtern um SQLite-Fehler zu vermeiden!
+            var validData = _minuteBuffer
+                .Where(s => !double.IsNaN(s.Value) && !double.IsInfinity(s.Value))
+                .ToList();
 
-            foreach (var group in groupedSensors)
+            if (validData.Count > 0)
             {
-                var first = group.First();
-                aggregatedData.Add(new AggregatedSensorData
+                var aggregatedData = new List<AggregatedSensorData>();
+                var currentTime = DateTime.Now;
+                var groupedSensors = validData.GroupBy(s => s.Name);
+
+                foreach (var group in groupedSensors)
                 {
-                    Timestamp = currentTime,
-                    Name = group.Key,
-                    HardwareType = first.HardwareType,
-                    Format = first.Format,
-                    MinValue = group.Min(s => s.Value),
-                    MaxValue = group.Max(s => s.Value),
-                    AvgValue = group.Average(s => s.Value)
-                });
+                    var first = group.First();
+                    aggregatedData.Add(new AggregatedSensorData
+                    {
+                        Timestamp = currentTime,
+                        Name = group.Key,
+                        HardwareType = first.HardwareType,
+                        Format = first.Format,
+                        MinValue = group.Min(s => (double)s.Value),
+                        MaxValue = group.Max(s => (double)s.Value),
+                        AvgValue = group.Average(s => (double)s.Value)
+                    });
+                }
+
+                await _databaseService.SaveAggregatedDataAsync(aggregatedData, "minute_data");
+                await LoadDatabaseDataAsync();
             }
 
-            await _databaseService.SaveAggregatedDataAsync(aggregatedData, "MinuteData");
             _minuteBuffer.Clear();
-
-            if (AggregatedSensorDatas.Count > 0) await LoadDatabaseDataAsync();
+            _secondsUntilUpdate = SECOND_COUNTER;
+            NextUpdateText = $"{SECOND_COUNTER}s";
         }
 
         [RelayCommand]
-        private async Task LoadDatabaseDataAsync()
+        public async Task LoadDatabaseDataAsync()
         {
             try
             {
                 var data = await _databaseService.LoadMinuteDataAsync();
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    AggregatedSensorDatas.Clear();
-                    foreach (var d in data)
-                    {
-                        AggregatedSensorDatas.Add(d);
-                    }
+                    DatabaseRecords.Clear();
+                    foreach (var d in data) DatabaseRecords.Add(d);
                 });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Es gab ein Problem mit der Datenbank!\nBitte prüfe, ob dein MySQL-Server läuft.\n\nTechnischer Fehler: {ex.Message}",
-                    "Datenbankfehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                _logger.LogError(ex, "Fehler beim Laden der Datenbank-Historie.");
             }
+        }
+
+        private async Task LoadSensorConfigAsync()
+        {
+            if (File.Exists(_sensorSettingPath))
+            {
+                try
+                {
+                    var json = await File.ReadAllTextAsync(_sensorSettingPath);
+                    var config = JsonSerializer.Deserialize<List<SensorConfigModel>>(json);
+                    if (config != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            AvailableSensors.Clear();
+                            foreach (var s in config) AvailableSensors.Add(s);
+                        });
+                        return;
+                    }
+                }
+                catch (Exception ex) { _logger.LogError(ex, "Fehler beim Laden der Sensorkonfiguration."); }
+            }
+
+            // Fallback
+            var sensors = await _hardwareService.GetImportantSensorsAsync();
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                AvailableSensors.Clear();
+                foreach (var s in sensors)
+                {
+                    if (!AvailableSensors.Any(x => x.Name == s.Name))
+                        AvailableSensors.Add(new SensorConfigModel { Name = s.Name, HardwareType = s.HardwareType, IsEnabled = true });
+                }
+            });
         }
 
         [RelayCommand]
@@ -181,17 +235,13 @@ namespace SystemEye.ViewModels
             try
             {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string filePath = System.IO.Path.Combine(desktopPath, $"{DateTime.Now:ddMMyyyy_HHmmss}.txt");
-
+                string filePath = Path.Combine(desktopPath, $"{DateTime.Now:ddMMyyyy_HHmmss}.txt");
                 await _exportService.ExportCurrentDataToTxtAsync(filePath, CurrentSensors.ToList());
-
-                MessageBox.Show($"Log-Datei erfolgreich gespeichert:\n{filePath}", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Log-Datei gespeichert:\n{filePath}", "Export", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fehler beim Exportieren der TXT-Datei.");
-                MessageBox.Show($"Die Datei konnte nicht gespeichert werden!\nFehler: {ex.Message}",
-                    "Export fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Fehler: {ex.Message}", "Export fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

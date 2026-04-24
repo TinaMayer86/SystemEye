@@ -98,7 +98,7 @@ namespace SystemEye.Services
                             format = "GB";
                         }
 
-                        if (isImportant && sensor.Value.HasValue)
+                        if (isImportant && sensor.Value.HasValue && !float.IsNaN(sensor.Value.Value))
                         {
                             sensors.Add(new SensorDataModel(
                                 sensor.Name,
@@ -106,7 +106,7 @@ namespace SystemEye.Services
                                 sensor.SensorType.ToString(),
                                 sensor.Value.Value,
                                 format
-                                ));
+                            ));
                         }
                     }
                 }

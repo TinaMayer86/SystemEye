@@ -1,27 +1,17 @@
 ﻿using MaterialDesignThemes.Wpf;
-using Microsoft.Extensions.DependencyInjection;
 using ScottPlot.WPF;
-using System.ComponentModel;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using SystemEye.Services;
 using SystemEye.ViewModels;
+using ScottPlot;
+using System.Collections.Generic;
+using System.Linq;
+using System;
 
 namespace SystemEye
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         private MainViewModel? _mainViewModel;
@@ -30,18 +20,18 @@ namespace SystemEye
         {
             public Card MainCard { get; set; } = null!;
             public TextBlock ValueText { get; set; } = null!;
-            public ScottPlot.Plottables.DataLogger Logger { get; set; } = null!;
             public WpfPlot Plot { get; set; } = null!;
-            public int TickCount { get; set; } = 0;
+            public ScottPlot.Plottables.Signal Signal { get; set; } = null!;
+            public double[] DataBuffer { get; set; } = null!;
+            public int NextIndex { get; set; } = 0;
             public ScottPlot.Plottables.VerticalLine CurrentLine { get; set; } = null!;
         }
 
         private readonly Dictionary<string, SensorUI> _sensorUIs = new();
+
         public MainWindow()
         {
             InitializeComponent();
-
-            if (DesignerProperties.GetIsInDesignMode(this)) return;
 
             if (Application.Current is App myApp)
             {
@@ -54,16 +44,18 @@ namespace SystemEye
             }
         }
 
-
         private void OnViewModelDataUpdated()
         {
             Dispatcher.Invoke(() =>
             {
                 if (_mainViewModel == null) return;
 
+                var activeKeys = new HashSet<string>();
+
                 foreach (var sensor in _mainViewModel.CurrentSensors)
                 {
                     string key = $"{sensor.HardwareType}_{sensor.Name}";
+                    activeKeys.Add(key);
 
                     if (!_sensorUIs.ContainsKey(key))
                     {
@@ -73,46 +65,30 @@ namespace SystemEye
                     }
 
                     var ui = _sensorUIs[key];
-
                     ui.ValueText.Text = $"{sensor.Value:F1} {sensor.Format}";
 
-                    ui.Logger.Add(sensor.Value);
-                    ui.TickCount++;
-                    //TODO: Linie nochmal anpassen da es noch nicht richtig funktioniert!!!
-                    //Graph nochmal anpasssen der er sich falsch verhält
-                    double currentTick = ui.TickCount;
+                    ui.DataBuffer[ui.NextIndex] = sensor.Value;
+                    ui.CurrentLine.X = ui.NextIndex;
 
-                    ui.CurrentLine.X = currentTick;
+                    ui.NextIndex++;
+                    if (ui.NextIndex >= ui.DataBuffer.Length)
+                    {
+                        ui.NextIndex = 0;
+                    }
 
                     if (sensor.Format == "%")
-                    {
                         ui.Plot.Plot.Axes.SetLimitsY(0, 100);
-                    }
                     else
-                    {
                         ui.Plot.Plot.Axes.AutoScaleY();
-                    }
-
-                    double windowSize = 60;
-
-                    if (currentTick > windowSize)
-                    {
-                        ui.Plot.Plot.Axes.SetLimitsX(currentTick - windowSize, currentTick);
-                    }
-                    else
-                    {
-                        ui.Plot.Plot.Axes.SetLimitsX(0, windowSize);
-                    }
 
                     ui.Plot.Refresh();
                 }
-                var activeKeys = _mainViewModel.CurrentSensors.Select(s => $"{s.HardwareType}_{s.Name}").ToList();
-                var keysToRemove = _sensorUIs.Keys.Except(activeKeys).ToList();
 
-                foreach (var k in keysToRemove)
+                var keysToRemove = _sensorUIs.Keys.Where(k => !activeKeys.Contains(k)).ToList();
+                foreach (var key in keysToRemove)
                 {
-                    ChartsWrapPanel.Children.Remove(_sensorUIs[k].MainCard);
-                    _sensorUIs.Remove(k);
+                    ChartsWrapPanel.Children.Remove(_sensorUIs[key].MainCard);
+                    _sensorUIs.Remove(key);
                 }
             });
         }
@@ -120,39 +96,61 @@ namespace SystemEye
         private SensorUI CreateSensorCard(Models.SensorDataModel sensor)
         {
             var ui = new SensorUI();
+            int bufferSize = 60;
+            ui.DataBuffer = new double[bufferSize];
 
             ui.MainCard = new Card
             {
                 Width = 320,
                 Height = 140,
                 Margin = new Thickness(8),
-                UniformCornerRadius = 16    // Corner anpassung
+                UniformCornerRadius = 16
             };
 
-            ElevationAssist.SetElevation(ui.MainCard, Elevation.Dp1);   // schatten
+            ElevationAssist.SetElevation(ui.MainCard, Elevation.Dp1);
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
 
-            // Linke Seite(Text)
-            var stackPanel = new StackPanel { Margin = new Thickness(16, 16, 8, 16) };
+            var infoStack = new StackPanel
+            {
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                Margin = new Thickness(16, 16, 8, 16)
+            };
 
-            var nameText = new TextBlock { Text = sensor.Name, FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap };
-            var hwText = new TextBlock { Text = sensor.HardwareType, FontSize = 11, Opacity = 0.6, Margin = new Thickness(0, 2, 0, 8), TextTrimming = TextTrimming.CharacterEllipsis };
+            var nameText = new TextBlock
+            {
+                Text = sensor.Name,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            var hwText = new TextBlock
+            {
+                Text = sensor.HardwareType,
+                FontSize = 11,
+                Opacity = 0.6,
+                Margin = new Thickness(0, 2, 0, 8),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
 
             ui.ValueText = new TextBlock { FontSize = 28, FontWeight = FontWeights.Black };
             ui.ValueText.SetResourceReference(TextBlock.ForegroundProperty, "PrimaryHueMidBrush");
 
-            stackPanel.Children.Add(nameText);
-            stackPanel.Children.Add(hwText);
-            stackPanel.Children.Add(ui.ValueText);
+            infoStack.Children.Add(nameText);
+            infoStack.Children.Add(hwText);
+            infoStack.Children.Add(ui.ValueText);
 
-            Grid.SetColumn(stackPanel, 0);
-            grid.Children.Add(stackPanel);
+            Grid.SetColumn(infoStack, 0);
+            grid.Children.Add(infoStack);
 
-            // Rechte Seite(graphen)
-            var border = new Border { Background = new SolidColorBrush(Color.FromArgb(5, 0, 0, 0)), CornerRadius = new CornerRadius(0, 16, 16, 0) };
+            var border = new Border
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(12, 0, 0, 0)),
+                CornerRadius = new CornerRadius(0, 16, 16, 0)
+            };
 
             ui.Plot = new WpfPlot { Margin = new Thickness(5) };
             ui.Plot.UserInputProcessor.IsEnabled = false;
@@ -164,21 +162,21 @@ namespace SystemEye
             ui.Plot.Plot.FigureBackground.Color = ScottPlot.Color.FromHex("#00000000");
             ui.Plot.Plot.DataBackground.Color = ScottPlot.Color.FromHex("#00000000");
 
-            ui.Logger = ui.Plot.Plot.Add.DataLogger();
-            ui.Logger.Color = ScottPlot.Color.FromHex("#673AB7");
-            ui.Logger.LineWidth = 2.5f;
+            ui.Signal = ui.Plot.Plot.Add.Signal(ui.DataBuffer);
+            ui.Signal.Color = ScottPlot.Color.FromHex("#673AB7");
+            ui.Signal.LineWidth = 2.5f;
 
             ui.CurrentLine = ui.Plot.Plot.Add.VerticalLine(0);
             ui.CurrentLine.Color = ScottPlot.Color.FromHex("#FF5252");
             ui.CurrentLine.LineWidth = 2;
-            ui.CurrentLine.LinePattern = ScottPlot.LinePattern.Solid;
+
+            ui.Plot.Plot.Axes.SetLimitsX(0, bufferSize - 1);
 
             border.Child = ui.Plot;
             Grid.SetColumn(border, 1);
             grid.Children.Add(border);
 
             ui.MainCard.Content = grid;
-
             return ui;
         }
 
@@ -192,16 +190,10 @@ namespace SystemEye
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                this.DragMove();
-            }
+            if (e.ChangedButton == MouseButton.Left) this.DragMove();
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.WindowState = WindowState.Minimized;
-        }
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
 
         private void MaximizeButton_Click(object sender, RoutedEventArgs e)
         {
@@ -217,9 +209,6 @@ namespace SystemEye
             }
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
-        }
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => this.Close();
     }
 }

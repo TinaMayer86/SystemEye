@@ -36,12 +36,13 @@ namespace SystemEye
             services.AddSingleton<HardwareService>();
             services.AddSingleton<ExportService>();
 
+            var tempProvider = services.BuildServiceProvider();
+            var configService = tempProvider.GetRequiredService<ConfigService>();
 
             AppConfig appConfig;
             try
             {
                 // Lädt die Datei beim Start
-                var configService = new ConfigService();
                 appConfig = configService.LoadConfigAsync().GetAwaiter().GetResult();
             }
             catch
