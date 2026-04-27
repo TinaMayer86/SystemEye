@@ -1,10 +1,18 @@
 ﻿using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using SystemEye.Models;
 
 namespace SystemEye.Services
 {
-    public class HardwareService : IDisposable
+    /// <summary>
+    /// Service zur Auslesung von Hardware-Informationen.
+    /// Nutzt LibreHardwareMonitor, um Sensordaten und Systemkomponenten abzufragen.
+    /// </summary>
+    public class HardwareService
     {
         private readonly Computer _computer;
         private readonly ILogger<HardwareService> _logger;
@@ -12,118 +20,154 @@ namespace SystemEye.Services
         public HardwareService(ILogger<HardwareService> logger)
         {
             _logger = logger;
-
             _computer = new Computer
             {
                 IsCpuEnabled = true,
                 IsGpuEnabled = true,
                 IsMemoryEnabled = true,
                 IsMotherboardEnabled = true,
-                IsControllerEnabled = true,
-                IsStorageEnabled = true,
-                IsNetworkEnabled = true
+                IsNetworkEnabled = true,
+                IsStorageEnabled = true
             };
-
-            try
-            {
-                _computer.Open();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex, "Kritischer Fehler beim Starten des LibreHardwareMonitors. Sensoren können nicht gelesen werden.");
-            }
+            _computer.Open();
         }
 
+        /// <summary>
+        /// Ruft allgemeine Systeminformationen wie Hardwarenamen, RAM-Größe und GPU-Details ab.
+        /// </summary>
+        /// <returns>
+        /// Eine sortierte Liste von Strings mit Hardware-Details.
+        /// </returns>
         public async Task<List<string>> GetSystemInformationAsync()
         {
             return await Task.Run(() =>
             {
                 var infoList = new List<string>();
+                double detectedSpeed = 0;
+
+                // Durchlauf zur Ermittlung der Taktrate
                 foreach (var hardware in _computer.Hardware)
                 {
-                    try
+                    hardware.Update();
+                    var speedSensor = hardware.Sensors.FirstOrDefault(s =>
+                        s.SensorType == SensorType.Clock &&
+                        (s.Name.Contains("Memory") || s.Name.Contains("Bus")));
+
+                    if (speedSensor?.Value > detectedSpeed)
+                        detectedSpeed = speedSensor.Value.Value;
+                }
+
+                foreach (var hardware in _computer.Hardware)
+                {
+                    hardware.Update();
+
+                    // Filtert virtuelle oder irrelevante Netzwerkadapter aus
+                    if (hardware.HardwareType == HardwareType.Network)
                     {
-                        hardware.Update();
+                        string n = hardware.Name.ToLower();
+                        if (n.Contains("kernel") || n.Contains("microsoft") || n.Contains("pseudo") ||
+                            n.Contains("qos") || n.Contains("wfp") || n.Contains("lightweight") ||
+                            n.Contains("miniport") || n.Contains("filter") || n.Contains("adapter 0"))
+                        {
+                            continue;
+                        }
+                    }
+
+                    if (hardware.HardwareType == HardwareType.Memory)
+                    {
+                        if (hardware.Name.Contains("Virtual")) continue;
+
+                        double used = hardware.Sensors.FirstOrDefault(s => s.Name == "Memory Used")?.Value ?? 0;
+                        double avail = hardware.Sensors.FirstOrDefault(s => s.Name == "Memory Available")?.Value ?? 0;
+                        double total = used + avail;
+
+                        if (hardware.Name.Contains("Total"))
+                        {
+                            infoList.Add($"Arbeitsspeicher Gesamt: {total:F1} GB");
+                        }
+                        else
+                        {
+                            string speed = detectedSpeed > 0 ? $"{(detectedSpeed * 2):F0} MHz" : "N/V";
+                            infoList.Add($"{hardware.Name}: 16,0 GB @ {speed}");
+                        }
+                    }
+                    else if (hardware.HardwareType == HardwareType.GpuNvidia || hardware.HardwareType == HardwareType.GpuAmd)
+                    {
+                        var vramSensor = hardware.Sensors.FirstOrDefault(s => s.Name.Contains("Memory Total"));
+                        float vram = vramSensor?.Value ?? 0;
+                        if (vram > 512) vram /= 1024f;
+                        infoList.Add($"GPU: {hardware.Name} ({vram:F0} GB VRAM)");
+                    }
+                    else
+                    {
                         infoList.Add($"{hardware.HardwareType}: {hardware.Name}");
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Hardware-Info für {HardwareName} konnte nicht gelesen werden.", hardware.Name);
-                    }
                 }
-                return infoList;
+
+                // Sortiert die Liste nach Hardware-Priorität
+                return infoList.OrderBy(item =>
+                {
+                    if (item.Contains("Motherboard")) return 0;
+                    if (item.Contains("Cpu")) return 1;
+                    if (item.Contains("Arbeitsspeicher")) return 2;
+                    if (item.Contains("GPU")) return 4;
+                    return 5;
+                }).ToList();
             });
         }
 
+        /// <summary>
+        /// Liest alle aktuell verfügbaren Sensoren der Hardware aus.
+        /// </summary>
+        /// <returns>
+        /// Liste von SensorDataModel-Objekten mit aktuellen Messwerten.
+        /// </returns>
         public async Task<List<SensorDataModel>> GetImportantSensorsAsync()
         {
             return await Task.Run(() =>
             {
-                var sensors = new List<SensorDataModel>();
+                var sensorList = new List<SensorDataModel>();
                 foreach (var hardware in _computer.Hardware)
                 {
-                    try
-                    {
-                        hardware.Update();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Sensor-Update für {HardwareName} fehlgeschlagen. Hardware wird für diese Sekunde übersprungen.", hardware.Name);
-                        continue;
-                    }
-
+                    hardware.Update();
                     foreach (var sensor in hardware.Sensors)
                     {
-                        bool isImportant = true;
-                        string format = "";
-
-                        if (sensor.SensorType == SensorType.Load && (sensor.Name.Contains("Total") || sensor.Name.Contains("Core")))
+                        if (sensor.Value.HasValue)
                         {
-                            isImportant = true;
-                            format = "%";
-                        }
-                        else if (sensor.SensorType == SensorType.Temperature)
-                        {
-                            isImportant = true;
-                            format = "°C";
-                        }
-                        else if (sensor.SensorType == SensorType.Fan)
-                        {
-                            isImportant = true;
-                            format = "RPM";
-                        }
-                        else if (sensor.SensorType == SensorType.Data || sensor.SensorType == SensorType.SmallData)
-                        {
-                            isImportant = true;
-                            format = "GB";
-                        }
-
-                        if (isImportant && sensor.Value.HasValue && !float.IsNaN(sensor.Value.Value))
-                        {
-                            sensors.Add(new SensorDataModel(
+                            sensorList.Add(new SensorDataModel(
                                 sensor.Name,
                                 hardware.HardwareType.ToString(),
-                                sensor.SensorType.ToString(),
+                                hardware.Name,
                                 sensor.Value.Value,
-                                format
+                                GetFormatForSensor(sensor.SensorType)
                             ));
                         }
                     }
                 }
-                return sensors;
+                return sensorList;
             });
         }
 
-        public void Dispose()
+        /// <summary>
+        /// Weist den verschiedenen Sensortypen ihre physikalischen Einheiten zu.
+        /// </summary>
+        /// <param name="type">Der Typ des Sensors.</param>
+        /// <returns>
+        /// Gibt die Einheit als String zurück (z. B. °C, MHz, %).
+        /// </returns>
+        private static string GetFormatForSensor(SensorType type) // teste static!
         {
-            try
+            return type switch
             {
-                _computer.Close();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Fehler beim ordnungsgemäßen Schließen des Hardware-Monitors.");
-            }
+                SensorType.Temperature => "°C",
+                SensorType.Clock => "MHz",
+                SensorType.Load => "%",
+                SensorType.Fan => "RPM",
+                SensorType.Power => "W",
+                SensorType.Voltage => "V",
+                SensorType.Data => "GB",
+                _ => ""
+            };
         }
     }
 }

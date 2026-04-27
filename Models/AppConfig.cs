@@ -1,7 +1,7 @@
 ﻿namespace SystemEye.Models
 {
     /// <summary>
-    /// Enthält die Anwendungskonfiguration und stellt die Datenbankeinstellungen 
+    /// Enthält die Anwendungskonfiguration und stellt die Datenbankeinstellungen
     /// über das Database‑Objekt bereit.
     /// </summary>
     public class AppConfig
@@ -10,21 +10,19 @@
     }
 
     /// <summary>
-    /// Repräsentiert die Datenbankeinstellungen der Anwendung, 
-    /// einschließlich Server, Port, Datenbankname und Zugangsdaten, 
+    /// Repräsentiert die Datenbankeinstellungen der Anwendung (SQLite)
     /// und bietet eine Methode zum Erzeugen des Connection‑Strings.
     /// </summary>
-    /// <returns>
-    /// Gibt einen vollständigen MySQL‑Connection‑String basierend auf den 
-    /// gespeicherten Datenbankeinstellungen zurück.
+    /// /// <returns>
+    /// Gibt den Connection-String zurück.
     /// </returns>
     public class DatabaseConfig
     {
-        public string FilePath { get; set; } = string.Empty;
+        public string Database { get; set; } = "SystemEye_Data.db";
 
         public string GetConnectionString()
         {
-            return $"Data Source={FilePath}";
+            return $"Data Source={Database}";
         }
     }
 }

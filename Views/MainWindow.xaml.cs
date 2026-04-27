@@ -12,10 +12,15 @@ using System;
 
 namespace SystemEye
 {
+    /// <summary>
+    /// Logik für das Hauptfenster. Verfaltet die dynamische Erstellung von Sensorkarten
+    /// und die Echtzeit-Visualisierung der Daten mittels ScottPlot.
+    /// </summary>
     public partial class MainWindow : Window
     {
         private MainViewModel? _mainViewModel;
 
+        // Hilfsklasse zur Verwaltung der UI-Komponenten pro Sensor
         private class SensorUI
         {
             public Card MainCard { get; set; } = null!;
@@ -33,6 +38,7 @@ namespace SystemEye
         {
             InitializeComponent();
 
+            // Dependency Injection für das ViewModel auflösen
             if (Application.Current is App myApp)
             {
                 _mainViewModel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<MainViewModel>(myApp.Services);
@@ -44,6 +50,10 @@ namespace SystemEye
             }
         }
 
+        /// <summary>
+        /// Wird aufgerufen, wenn das ViewModel neue Sensordaten liefert.
+        /// Aktualisiert die Charts oder erstellt neue Karten, falls Sensoren hinzukommen.
+        /// </summary>
         private void OnViewModelDataUpdated()
         {
             Dispatcher.Invoke(() =>
@@ -57,6 +67,7 @@ namespace SystemEye
                     string key = $"{sensor.HardwareType}_{sensor.Name}";
                     activeKeys.Add(key);
 
+                    // Neue Karte erstellen, falls der Sensor zum ersten Mal auftaucht!
                     if (!_sensorUIs.ContainsKey(key))
                     {
                         var sensorUI = CreateSensorCard(sensor);
@@ -65,10 +76,39 @@ namespace SystemEye
                     }
 
                     var ui = _sensorUIs[key];
-                    ui.ValueText.Text = $"{sensor.Value:F1} {sensor.Format}";
 
-                    ui.DataBuffer[ui.NextIndex] = sensor.Value;
-                    ui.CurrentLine.X = ui.NextIndex;
+                    float finalValue = sensor.Value;
+                    string unit = sensor.Format;
+
+                    // Logik für GPU-Speicher (Konvertierung in GB)
+                    if (sensor.Name.Contains("Memory") && sensor.HardwareType.Contains("Gpu")) // testen ob der wert richtig angezeigt wird
+                    {
+                        if (finalValue > 1000)
+                        {
+                            finalValue /= 1024f;
+                            unit = "GB";
+                        }
+                        else if (string.IsNullOrEmpty(unit))
+                        {
+                            unit = "%";
+                        }
+                    }
+                    // Fallback mit standard einheiten
+                    if (string.IsNullOrEmpty(unit))
+                    {
+                        string lowerName = sensor.Name.ToLower();
+                        if (lowerName.Contains("temp")) unit = "°C";
+                        else if (lowerName.Contains("fan") || lowerName.Contains("rpm")) unit = "RPM";
+                        else if (lowerName.Contains("load") || lowerName.Contains("utilization") || lowerName.Contains("controller")) unit = "%";
+                        else if (lowerName.Contains("clock") || lowerName.Contains("freq")) unit = "MHz";
+                        else if (lowerName.Contains("power") || lowerName.Contains("watt")) unit = "W";
+                        else if (lowerName.Contains("voltage") || lowerName.Contains("volt")) unit = "V";
+                        else if (lowerName.Contains("data") || lowerName.Contains("used")) unit = "GB";
+                    }
+
+                    ui.ValueText.Text = $"{finalValue:F1} {unit}".Trim();
+                    ui.DataBuffer[ui.NextIndex] = finalValue;
+                    ui.CurrentLine.X = ui.NextIndex; // Rote vertikale Linie mitbewegen
 
                     ui.NextIndex++;
                     if (ui.NextIndex >= ui.DataBuffer.Length)
@@ -76,14 +116,17 @@ namespace SystemEye
                         ui.NextIndex = 0;
                     }
 
-                    if (sensor.Format == "%")
+                    if (unit == "%") // Skalierung anpassen: Prozent-Sensoren fest auf 0-100, Rest automatisch
+                    {
                         ui.Plot.Plot.Axes.SetLimitsY(0, 100);
+                    }
                     else
+                    {
                         ui.Plot.Plot.Axes.AutoScaleY();
-
+                    }
                     ui.Plot.Refresh();
                 }
-
+                // Entferne Karten für Sensoren, die nicht mehr aktiv sind
                 var keysToRemove = _sensorUIs.Keys.Where(k => !activeKeys.Contains(k)).ToList();
                 foreach (var key in keysToRemove)
                 {
@@ -93,6 +136,12 @@ namespace SystemEye
             });
         }
 
+        /// <summary>
+        /// Erstellt eine neue MaterialDesign-Card mit integriertem ScottPlot-Chart
+        /// </summary>
+        /// <returns>
+        /// Ein SensorUI-Objekt zur späteren Aktualisierung
+        /// </returns>
         private SensorUI CreateSensorCard(Models.SensorDataModel sensor)
         {
             var ui = new SensorUI();
@@ -113,6 +162,7 @@ namespace SystemEye
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
 
+            // Linke Seite: Namen und Werte
             var infoStack = new StackPanel
             {
                 VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -146,6 +196,7 @@ namespace SystemEye
             Grid.SetColumn(infoStack, 0);
             grid.Children.Add(infoStack);
 
+            // Rechte Seite: ScottPlot Chart
             var border = new Border
             {
                 Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(12, 0, 0, 0)),
@@ -155,6 +206,7 @@ namespace SystemEye
             ui.Plot = new WpfPlot { Margin = new Thickness(5) };
             ui.Plot.UserInputProcessor.IsEnabled = false;
 
+            // Chart-Styling (ohne Achsen)
             ui.Plot.Plot.Axes.Bottom.IsVisible = false;
             ui.Plot.Plot.Axes.Left.IsVisible = false;
             ui.Plot.Plot.Axes.Right.IsVisible = false;
@@ -180,12 +232,29 @@ namespace SystemEye
             return ui;
         }
 
+        // ---- Window-Managment (Theme, Drag, Buttons) ---
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
             var paletteHelper = new PaletteHelper();
             var theme = paletteHelper.GetTheme();
             theme.SetBaseTheme(ThemeToggleButton.IsChecked == true ? BaseTheme.Dark : BaseTheme.Light);
             paletteHelper.SetTheme(theme);
+        }
+
+        private void ListBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Weitergabe des Scroll-Events an das übergeordnete Element
+            if (!e.Handled)
+            {
+                e.Handled = true;
+                var eventArg = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+                {
+                    RoutedEvent = UIElement.MouseWheelEvent,
+                    Source = sender
+                };
+                var parent = ((Control)sender).Parent as UIElement;
+                parent?.RaiseEvent(eventArg);
+            }
         }
 
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)

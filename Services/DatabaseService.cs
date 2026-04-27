@@ -6,6 +6,10 @@ using SystemEye.Models;
 
 namespace SystemEye.Services
 {
+    /// <summary>
+    /// Service für die Datenbankinteraktion.
+    /// Übernimmt das Initialisieren, Speichern und Laden von Sensordaten in SQLite.
+    /// </summary>
     public class DatabaseService
     {
         private DatabaseConfig _config;
@@ -18,14 +22,18 @@ namespace SystemEye.Services
             _logger = logger;
         }
 
+        // Aktualisiert die Konfiguration
         public void UpdateConfig(DatabaseConfig newConfig) => _config = newConfig;
 
+        /// <summary>
+        /// Erstellt die Datenbankdatei und die Tabellenstruktur, falls nicht vorhanden.
+        /// </summary>
         private async Task InitializeDatabaseAsync()
         {
             if (_isInitialized) return;
             try
             {
-                var directory = Path.GetDirectoryName(_config.FilePath);
+                var directory = Path.GetDirectoryName(_config.Database);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
@@ -55,9 +63,12 @@ namespace SystemEye.Services
             }
         }
 
+        /// <summary>
+        /// Speichert eine Liste von aggregierten Daten in einer Transaktion.
+        /// </summary>
         public async Task SaveAggregatedDataAsync(List<AggregatedSensorData> datalist, string tableName)
         {
-            if (datalist.Count == 0 || string.IsNullOrEmpty(_config.FilePath)) return;
+            if (datalist.Count == 0 || string.IsNullOrEmpty(_config.Database)) return;
             await InitializeDatabaseAsync();
 
             try
@@ -98,10 +109,16 @@ namespace SystemEye.Services
             }
         }
 
-        public async Task<List<AggregatedSensorData>> LoadMinuteDataAsync()
+        /// <summary>
+        /// Lädt historische Daten mit Paging (Offset/Limit).
+        /// </summary>
+        /// <returns>
+        /// Liste der gefundenen Sensordaten.
+        /// </returns>
+        public async Task<List<AggregatedSensorData>> LoadMinuteDataAsync(int offset = 0, int limit = 100)
         {
             var list = new List<AggregatedSensorData>();
-            if (string.IsNullOrEmpty(_config.FilePath)) return list;
+            if (string.IsNullOrEmpty(_config.Database)) return list;
             await InitializeDatabaseAsync();
 
             try
@@ -109,7 +126,11 @@ namespace SystemEye.Services
                 using var connection = new SqliteConnection(_config.GetConnectionString());
                 await connection.OpenAsync();
                 using var cmd = connection.CreateCommand();
-                cmd.CommandText = "SELECT * FROM minute_data ORDER BY timestamp DESC LIMIT 1000;";
+
+                cmd.CommandText = "SELECT * FROM minute_data ORDER BY timestamp DESC LIMIT @limit OFFSET @offset;";
+                cmd.Parameters.AddWithValue("@limit", limit);
+                cmd.Parameters.AddWithValue("@offset", offset);
+
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
@@ -127,11 +148,52 @@ namespace SystemEye.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fehler beim Laden der Historie.");
+                _logger.LogError(ex, "Fehler beim Laden der Historie mit Offset.");
                 throw;
             }
             return list;
+        }
 
+        /// <summary>
+        /// Lädt die Daten der letzten Stunde.
+        /// </summary>
+        /// <returns>
+        /// Liste der Sensordaten der letzten 60 Minuten.
+        /// </returns>
+        public async Task<List<AggregatedSensorData>> LoadLastHourDataAsync()
+        {
+            var list = new List<AggregatedSensorData>();
+            if (string.IsNullOrEmpty(_config.Database)) return list;
+            await InitializeDatabaseAsync();
+
+            try
+            {
+                using var connection = new SqliteConnection(_config.GetConnectionString());
+                await connection.OpenAsync();
+                using var cmd = connection.CreateCommand();
+
+                cmd.CommandText = "SELECT * FROM minute_data WHERE timestamp >= datetime('now', '-1 hour') ORDER BY timestamp ASC;";
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    list.Add(new AggregatedSensorData
+                    {
+                        Timestamp = DateTime.Parse(reader.GetString(reader.GetOrdinal("timestamp"))),
+                        Name = reader.GetString(reader.GetOrdinal("name")),
+                        HardwareType = reader.GetString(reader.GetOrdinal("hardware_type")),
+                        MinValue = reader.GetDouble(reader.GetOrdinal("min_value")),
+                        MaxValue = reader.GetDouble(reader.GetOrdinal("max_value")),
+                        AvgValue = reader.GetDouble(reader.GetOrdinal("avg_value")),
+                        Format = reader.GetString(reader.GetOrdinal("format"))
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fehler beim Laden der Stunden-Daten.");
+            }
+            return list;
         }
     }
 }
