@@ -215,12 +215,12 @@ namespace SystemEye
             ui.Plot.Plot.DataBackground.Color = ScottPlot.Color.FromHex("#00000000");
 
             ui.Signal = ui.Plot.Plot.Add.Signal(ui.DataBuffer);
-            ui.Signal.Color = ScottPlot.Color.FromHex("#673AB7");
+            ui.Signal.Color = ScottPlot.Color.FromHex("#009688");
             ui.Signal.LineWidth = 2.5f;
 
             ui.CurrentLine = ui.Plot.Plot.Add.VerticalLine(0);
-            ui.CurrentLine.Color = ScottPlot.Color.FromHex("#FF5252");
-            ui.CurrentLine.LineWidth = 2;
+            ui.CurrentLine.Color = ScottPlot.Color.FromHex("#FFB300");
+            ui.CurrentLine.LineWidth = 3;
 
             ui.Plot.Plot.Axes.SetLimitsX(0, bufferSize - 1);
 

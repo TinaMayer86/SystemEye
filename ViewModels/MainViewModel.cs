@@ -370,5 +370,28 @@ namespace SystemEye.ViewModels
                 MessageBox.Show("Fehler beim Speichern der Einstellungen.");
             }
         }
+
+        [RelayCommand]
+        public async Task ResetDatabaseAsync()
+        {
+            var result = MessageBox.Show(
+                "Möchten Sie wirklich alle gespeicherten Historiendaten löschen? Dies kann nicht rückgängig gemacht werden.",
+                "Datenbank zurücksetzen",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    await _databaseService.ClearDatabaseAsync();
+                    MessageBox.Show("Datenbank wurde erfolgreich zurückgesetzt.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Fehler beim Zurücksetzen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
     }
 }

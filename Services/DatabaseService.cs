@@ -195,5 +195,28 @@ namespace SystemEye.Services
             }
             return list;
         }
+
+        public async Task ClearDatabaseAsync()
+        {
+            try
+            {
+                SqliteConnection.ClearAllPools();
+
+                if (File.Exists(_config.Database))
+                {
+                    File.Delete(_config.Database);
+                    _logger.LogInformation("Datenbankdatei gelöscht.");
+                }
+
+                _isInitialized = false;
+                await InitializeDatabaseAsync();
+                _logger.LogInformation("Datenbank wurde erfolgreich neu erstellt.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fehler beim Löschen der Datenbank.");
+                throw;
+            }
+        }
     }
 }

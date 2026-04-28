@@ -99,7 +99,7 @@
                                                 <StackPanel Orientation="Horizontal"
                                                             Margin="0,4">
                                                     <materialDesign:PackIcon Kind="ChevronRight"
-                                                                             Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                                             Foreground="{DynamicResource SecondaryHueMidBrush}"
                                                                              VerticalAlignment="Center"/>
                                                     <TextBlock Text="{Binding}"
                                                                Margin="8,0,0,0"
@@ -139,10 +139,10 @@
                                     Margin="0,0,0,16">
                             <materialDesign:Chip Content="{Binding NextUpdateText}"
                                                  ToolTip="Zeit bis zur nächsten Datenbank-Speicherung"
-                                                 Background="{DynamicResource PrimaryHueLightBrush}"
-                                                 Foreground="{DynamicResource PrimaryHueLightForegroundBrush}">
-                                <materialDesign:Chip.Icon>
-                                    <materialDesign:PackIcon Kind="Clock" />
+                                                 Foreground="{DynamicResource MaterialDesignBody}">
+                                <materialDesign:Chip.Icon> 
+                                    <materialDesign:PackIcon Kind="Clock"
+                                                             Foreground="{DynamicResource MaterialDesignBody}"/>
                                 </materialDesign:Chip.Icon>
                             </materialDesign:Chip>
                         </StackPanel>
@@ -153,23 +153,31 @@
                             <TextBlock Text="Historie blättern:" 
                                        VerticalAlignment="Center" 
                                        Margin="0,0,12,0" 
-                                       Style="{StaticResource MaterialDesignBody2TextBlock}" 
-                                       Opacity="0.6"/>
+                                       Style="{StaticResource MaterialDesignBody2TextBlock}"/>
                             <Button Command="{Binding PreviousHistoryPageCommand}" 
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                                    Content="{materialDesign:PackIcon Kind=ChevronLeft}"
+                                    Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
                                     ToolTip="Neuere Daten laden"
                                     Width="40" Height="40"
                                     Padding="0"
                                     Margin="0,0,8,0"
-                                    materialDesign:ButtonAssist.CornerRadius="20"/>
+                                    materialDesign:ButtonAssist.CornerRadius="20">
+                                <materialDesign:PackIcon Kind="ChevronLeft" 
+                                                         Width="24" 
+                                                         Height="24" 
+                                                         Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Button>
+
                             <Button Command="{Binding NextHistoryPageCommand}" 
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                                    Content="{materialDesign:PackIcon Kind=ChevronRight}"
+                                    Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
                                     ToolTip="Ältere Daten laden"
                                     Width="40" Height="40"
                                     Padding="0"
-                                    materialDesign:ButtonAssist.CornerRadius="20"/>
+                                    materialDesign:ButtonAssist.CornerRadius="20">
+                                <materialDesign:PackIcon Kind="ChevronRight" 
+                                                         Width="24" 
+                                                         Height="24" 
+                                                         Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Button>
                         </StackPanel>
                         <materialDesign:Card Grid.Row="2" 
                                              UniformCornerRadius="15" 
@@ -195,41 +203,57 @@
                         </materialDesign:Card>
                     </Grid>
                 </TabItem>
-                <TabItem Header="4. Einstellungen"
-                         Width="auto">
+                <TabItem Header="4. Einstellungen">
                     <Grid Margin="20">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="320"/>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="380" />
                         </Grid.ColumnDefinitions>
-                        <materialDesign:Card Padding="16"
-                                             Margin="0,0,10,0"
+                        <materialDesign:Card Grid.Column="0" 
+                                             Padding="20" 
+                                             Margin="0,0,12,0"
                                              materialDesign:ElevationAssist.Elevation="Dp1"
                                              UniformCornerRadius="16">
-                            <StackPanel>
-                                <TextBlock Text="Sichtbare Sensoren"
-                                           Style="{StaticResource MaterialDesignHeadline6TextBlock}"
-                                           Margin="0,0,0,10"/>
-                                <ScrollViewer MaxHeight="500">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+                                    <TextBlock Text="Sichtbare Sensoren"
+                                               Style="{StaticResource MaterialDesignHeadline5TextBlock}" />
+                                    <TextBlock Text="Wählen Sie aus, welche Hardware-Sensoren im Dashboard und in der Historie erfasst werden sollen."
+                                               Style="{StaticResource MaterialDesignBody2TextBlock}"
+                                               Opacity="0.6" 
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button DockPanel.Dock="Bottom"
+                                        Command="{Binding SaveSensorConfigCommand}"
+                                        Content="Konfiguration Speichern"
+                                        Style="{StaticResource MaterialDesignFlatButton}"
+                                        Margin="0,16,0,0"
+                                        HorizontalAlignment="Right"
+                                        materialDesign:ButtonAssist.CornerRadius="10"/>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding AvailableSensors}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsEnabled}"
+                                                          Style="{StaticResource MaterialDesignFilterChipPrimaryCheckBox}"
                                                           Margin="0,4">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Name}"
-                                                                   FontWeight="Bold"/>
-                                                        <TextBlock Text="{Binding HardwareType, StringFormat=' ({0})'}"
+                                                                   FontWeight="Bold"
+                                                                   Width="200"/>
+                                                        <TextBlock Text="{Binding HardwareType}"
                                                                    Opacity="0.5"
-                                                                   FontSize="12"/>
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center" />
                                                     </StackPanel>
                                                 </CheckBox>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
-                            </StackPanel>
+                            </DockPanel>
                         </materialDesign:Card>
+
                         <StackPanel Grid.Column="1">
                             <materialDesign:Card Padding="16"
                                                  Margin="0,0,0,16"
@@ -251,28 +275,66 @@
                                     </DockPanel>
                                 </StackPanel>
                             </materialDesign:Card>
-                            <materialDesign:Card Padding="16"
-                                                 Background="{DynamicResource PrimaryHueLightBrush}"
-                                                 materialDesign:ElevationAssist.Elevation="Dp1"
+                            <materialDesign:Card Padding="20" 
+                                                 Margin="0,0,0,16"
+                                                 materialDesign:ElevationAssist.Elevation="Dp2"
                                                  UniformCornerRadius="16">
                                 <StackPanel>
-                                    <materialDesign:PackIcon Kind="FileExport"
-                                                             Width="48"
-                                                             Height="48"
-                                                             HorizontalAlignment="Center"
-                                                             Margin="0,0,0,10"/>
-                                    <TextBlock Text="Daten-Export"
-                                               HorizontalAlignment="Center"
-                                               Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
-                                    <TextBlock Text="Speichert den Durchschnitt, Minimum und Maximum der letzten Stunde als Textdatei auf dem Desktop."
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                        <materialDesign:PackIcon Kind="FileExport"
+                                                                 Width="24"
+                                                                 Height="24"
+                                                                 VerticalAlignment="Center"/>
+                                        <TextBlock Text="Daten Export"
+                                                   Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                                                   Margin="12,0,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Text="Speichert die Durchschnitts-, Minimum- und Maximumwerte der letzten Stunde als Textdatei auf Ihrem Desktop."
                                                TextWrapping="Wrap"
-                                               TextAlignment="Center"
-                                               Margin="0,10"/>
+                                               Style="{StaticResource MaterialDesignBody2TextBlock}"
+                                               Margin="0,0,0,20" />
                                     <Button Command="{Binding ExportLogCommand}" 
                                             Content="Jetzt Exportieren" 
                                             Margin="0,10,0,0" 
-                                            Style="{StaticResource MaterialDesignRaisedDarkButton}"
-                                            materialDesign:ButtonAssist.CornerRadius="10"/>
+                                            Style="{StaticResource MaterialDesignRaisedButton}"
+                                            materialDesign:ButtonAssist.CornerRadius="10"
+                                            FontWeight="Regular"
+                                            FontSize="14"
+                                            Foreground="{DynamicResource MaterialDesignBody}"
+                                            Typography.Capitals="Normal"/>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <materialDesign:Card Padding="20" 
+                                                 Margin="0,0,0,16"
+                                                 materialDesign:ElevationAssist.Elevation="Dp2"
+                                                 UniformCornerRadius="16">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" 
+                                                Margin="0,0,0,12">
+                                        <materialDesign:PackIcon Kind="DatabaseAlert" 
+                                                                 Foreground="{DynamicResource MaterialDesignBody}" 
+                                                                 Width="24" Height="24" 
+                                                                 VerticalAlignment="Center" />
+                                        <TextBlock Text="Datenbank zurücksetzen"
+                                                   Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                                                   Margin="12,0,0,0"
+                                                   Foreground="{DynamicResource MaterialDesignBody}" />
+                                    </StackPanel>
+                                    <TextBlock Text="Alle aufgezeichneten Statistiken werden unwiderruflich gelöscht. Dies ist nützlich, wenn Sie die Hardware gewechselt haben."
+                                               TextWrapping="Wrap"
+                                               Style="{StaticResource MaterialDesignBody2TextBlock}"
+                                               Margin="0,0,0,20" />
+
+                                    <Button Command="{Binding ResetDatabaseCommand}"
+                                            Content="ALLES LÖSCHEN"
+                                            Margin="0,10,0,0" 
+                                            Style="{StaticResource MaterialDesignRaisedButton}"
+                                            materialDesign:ButtonAssist.CornerRadius="10"
+                                            FontWeight="Regular"
+                                            FontSize="14"
+                                            Foreground="{DynamicResource MaterialDesignBody}"
+                                            Typography.Capitals="Normal"/>
                                 </StackPanel>
                             </materialDesign:Card>
                         </StackPanel>
