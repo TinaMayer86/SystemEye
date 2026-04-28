@@ -28,6 +28,7 @@ namespace SystemEye.ViewModels
         private readonly DatabaseService _databaseService;
         private readonly ExportService _exportService;
         private readonly ConfigService _configService;
+        private readonly ApiService _apiService;
         private readonly ILogger<MainViewModel> _logger;
 
         private readonly string _sensorSettingPath = Path.Combine("Config", "sensors.json");
@@ -50,6 +51,12 @@ namespace SystemEye.ViewModels
         [ObservableProperty]
         private DateTime _lastDatabaseUpdate = DateTime.Now;
 
+        [ObservableProperty]
+        private bool _isApiActive;
+
+        [ObservableProperty]
+        private string _apiStatusText = "API Starten";
+
         // Interne Buffer + Zustände
         private readonly List<SensorDataModel> _minuteBuffer = new();
         private DateTime _lastDbSave = DateTime.Now;
@@ -63,12 +70,14 @@ namespace SystemEye.ViewModels
             DatabaseService databaseService,
             ExportService exportService,
             ConfigService configService,
+            ApiService apiService,
             ILogger<MainViewModel> logger)
         {
             _hardwareService = hardwareService;
             _databaseService = databaseService;
             _exportService = exportService;
             _configService = configService;
+            _apiService = apiService;
             _logger = logger;
 
             Task.Run(InitializeAndStartMonitoringAsync); // Startet den Hintergrund-Task für das Monitoring
@@ -154,7 +163,7 @@ namespace SystemEye.ViewModels
         /// </summary>
         private async Task AggregateAndSaveToDatabaseAsync()
         {
-            // NaN und Infinity filtern 
+            // NaN und Infinity filtern, um Datenbankfehler zu vermeiden 
             var validData = _minuteBuffer
                 .Where(s => !double.IsNaN(s.Value) && !double.IsInfinity(s.Value))
                 .ToList();
@@ -182,21 +191,26 @@ namespace SystemEye.ViewModels
 
                 try
                 {
+                    // Speichern der aggregierten Daten in der Datenbank 
                     await _databaseService.SaveAggregatedDataAsync(aggregatedData, "minute_data");
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         LastDatabaseUpdate = currentTime;
-                        _currentHistoryOffset = 0;
                     });
-                    await LoadDatabaseDataAsync();
+
+                    if (_currentHistoryOffset == 0)
+                    {
+                        await LoadDatabaseDataAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Fehler beim Aggregieren und Speichern der Sensordaten.");
                 }
             }
-            // Buffer leeren und Timer für die nächste Minute zurücksetzen
+
+            // Buffer leeren und Timer für die nächste Minute zurücksetzen 
             _minuteBuffer.Clear();
             _secondsUntilUpdate = SECOND_COUNTER;
             NextUpdateText = $"{SECOND_COUNTER}s";
@@ -391,6 +405,23 @@ namespace SystemEye.ViewModels
                 {
                     MessageBox.Show($"Fehler beim Zurücksetzen: {ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        [RelayCommand]
+        public async Task ToggleApiAsync()
+        {
+            if (!IsApiActive)
+            {
+                await _apiService.StartApiAsync(5000);
+                ApiStatusText = "API Stoppen";
+                IsApiActive = true;
+            }
+            else
+            {
+                await _apiService.StopApiAsync();
+                ApiStatusText = "API Starten";
+                IsApiActive = false;
             }
         }
     }

@@ -7,10 +7,12 @@
         xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         xmlns:local="clr-namespace:SystemEye"
         mc:Ignorable="d"
-        Title="SystemEye" Height="700" Width="1100"
+        Title="SystemEye" Height="750" Width="1100"
         WindowStyle="None" 
         AllowsTransparency="True"
         WindowStartupLocation="CenterScreen"
+        MinHeight="750"
+        MinWidth="745"
         Background="{DynamicResource MaterialDesignPaper}"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         TextElement.FontWeight="Regular"
@@ -154,9 +156,9 @@
                                        VerticalAlignment="Center" 
                                        Margin="0,0,12,0" 
                                        Style="{StaticResource MaterialDesignBody2TextBlock}"/>
-                            <Button Command="{Binding PreviousHistoryPageCommand}" 
+                            <Button Command="{Binding NextHistoryPageCommand}" 
                                     Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
-                                    ToolTip="Neuere Daten laden"
+                                    ToolTip="Ältere Daten laden"
                                     Width="40" Height="40"
                                     Padding="0"
                                     Margin="0,0,8,0"
@@ -167,9 +169,9 @@
                                                          Foreground="{DynamicResource MaterialDesignBody}"/>
                             </Button>
 
-                            <Button Command="{Binding NextHistoryPageCommand}" 
+                            <Button Command="{Binding PreviousHistoryPageCommand}" 
                                     Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
-                                    ToolTip="Ältere Daten laden"
+                                    ToolTip="Neuere Daten laden"
                                     Width="40" Height="40"
                                     Padding="0"
                                     materialDesign:ButtonAssist.CornerRadius="20">
@@ -255,6 +257,20 @@
                         </materialDesign:Card>
 
                         <StackPanel Grid.Column="1">
+                            <materialDesign:Card Padding="16"
+                                                 Margin="0,0,0,16"
+                                                 materialDesign:ElevationAssist.Elevation="Dp1"
+                                                 UniformCornerRadius="16">
+                                <Button Command="{Binding ToggleApiCommand}" 
+                                        Content="{Binding ApiStatusText}" 
+                                        Margin="0,10,0,0" 
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        materialDesign:ButtonAssist.CornerRadius="10"
+                                        FontWeight="Regular"
+                                        FontSize="14"
+                                        Foreground="{DynamicResource MaterialDesignBody}"
+                                        Typography.Capitals="Normal"/>
+                            </materialDesign:Card>
                             <materialDesign:Card Padding="16"
                                                  Margin="0,0,0,16"
                                                  materialDesign:ElevationAssist.Elevation="Dp1"

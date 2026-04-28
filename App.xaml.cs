@@ -31,10 +31,12 @@ namespace SystemEye
                 loggingBuilder.AddFile("Logs/SystemEye_{Date}.txt", LogLevel.Warning);
             });
 
-            // Basis-Services
+            // Basis-Services registrieren
             services.AddSingleton<ConfigService>();
             services.AddSingleton<HardwareService>();
             services.AddSingleton<ExportService>();
+            services.AddSingleton<MainViewModel>();
+            services.AddSingleton<ApiService>();
 
             var tempProvider = services.BuildServiceProvider();
             var configService = tempProvider.GetRequiredService<ConfigService>();
