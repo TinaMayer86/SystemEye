@@ -57,7 +57,6 @@ namespace SystemEye
                 var logger = provider.GetRequiredService<ILogger<DatabaseService>>();
                 return new DatabaseService(appConfig.Database, logger);
             });
-            services.AddTransient<MainViewModel>();
 
             return services.BuildServiceProvider();
         }

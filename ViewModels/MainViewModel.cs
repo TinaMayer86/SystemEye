@@ -1,14 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using SystemEye.Models;
 using SystemEye.Services;
@@ -57,11 +52,15 @@ namespace SystemEye.ViewModels
         [ObservableProperty]
         private string _apiStatusText = "API Starten";
 
+        [ObservableProperty]
+        private string _searchText = "";
+
         // Interne Buffer + Zustände
         private readonly List<SensorDataModel> _minuteBuffer = new();
         private DateTime _lastDbSave = DateTime.Now;
         private int _secondsUntilUpdate = SECOND_COUNTER;
         private int _currentHistoryOffset = 0;
+        private bool _isBulkUpdating = false;
 
         public event Action? DataUpdated;
 
@@ -261,6 +260,7 @@ namespace SystemEye.ViewModels
         {
             bool fileLoaded = false;
 
+            // Gespeicherte Einstellungen laden
             if (File.Exists(_sensorSettingPath))
             {
                 try
@@ -277,7 +277,7 @@ namespace SystemEye.ViewModels
                             {
                                 s.PropertyChanged += async (sender, e) =>
                                 {
-                                    if (e.PropertyName == nameof(SensorConfigModel.IsEnabled))
+                                    if (!_isBulkUpdating && e.PropertyName == nameof(SensorConfigModel.IsEnabled))
                                     {
                                         await SaveSensorConfigAsync();
                                         await UpdateSensorsAsync();
@@ -294,38 +294,69 @@ namespace SystemEye.ViewModels
                     _logger.LogError(ex, "Fehler beim Laden der sensors.json.");
                 }
             }
-            // Falls keine Datei existiert, Sensoren von Hardware-Service beziehen!
-            if (!fileLoaded)
+            var currentHardwareSensors = await _hardwareService.GetImportantSensorsAsync();
+            bool newSensorsAdded = false;
+
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                var sensors = await _hardwareService.GetImportantSensorsAsync();
+                // Wenn keine Datei da war, Liste einmal leeren zur Sicherheit
+                if (!fileLoaded) AvailableSensors.Clear();
 
-                Application.Current.Dispatcher.Invoke(() =>
+                // Alle aktuell gefundenen Sensoren durchgehen
+                foreach (var s in currentHardwareSensors)
                 {
-                    AvailableSensors.Clear();
-                    foreach (var s in sensors)
+                    // Prüfen, ob der Sensor schon in unserer Liste ist
+                    if (!AvailableSensors.Any(x => x.Name == s.Name && x.HardwareType == s.HardwareType))
                     {
-                        if (!AvailableSensors.Any(x => x.Name == s.Name && x.HardwareType == s.HardwareType))
+                        var newSensor = new SensorConfigModel
                         {
-                            var newSensor = new SensorConfigModel
-                            {
-                                Name = s.Name,
-                                HardwareType = s.HardwareType,
-                                IsEnabled = true
-                            };
+                            Name = s.Name,
+                            HardwareType = s.HardwareType,
+                            IsEnabled = !fileLoaded // Wenn neu erstellt, alles an. Wenn aus Datei geladen, neue Sensoren erstmal aus
+                        };
 
-                            newSensor.PropertyChanged += async (sender, e) =>
+                        newSensor.PropertyChanged += async (sender, e) =>
+                        {
+                            if (e.PropertyName == nameof(SensorConfigModel.IsEnabled))
                             {
-                                if (e.PropertyName == nameof(SensorConfigModel.IsEnabled))
-                                {
-                                    await SaveSensorConfigAsync();
-                                    await UpdateSensorsAsync();
-                                }
-                            };
-                            AvailableSensors.Add(newSensor);
-                        }
+                                await SaveSensorConfigAsync();
+                                await UpdateSensorsAsync();
+                            }
+                        };
+                        AvailableSensors.Add(newSensor);
+                        newSensorsAdded = true;
                     }
-                });
+                }
+            });
+
+            // Wenn neue Sensoren gefunden, direkt speichern
+            if (newSensorsAdded || !fileLoaded)
+            {
                 await SaveSensorConfigAsync();
+            }
+        }
+
+        partial void OnSearchTextChanged(string value)
+        {
+            var view = System.Windows.Data.CollectionViewSource.GetDefaultView(AvailableSensors);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                view.Filter = null; // Filter entfernen, wenn das Suchfeld leer ist
+            }
+            else
+            {
+                var searchLower = value.ToLower();
+                view.Filter = item =>
+                {
+                    if (item is SensorConfigModel sensor)
+                    {
+                        // Sucht im Namen UND in der Hardware-Kategorie
+                        return (sensor.Name != null && sensor.Name.ToLower().Contains(searchLower)) ||
+                               (sensor.HardwareType != null && sensor.HardwareType.ToLower().Contains(searchLower));
+                    }
+                    return false;
+                };
             }
         }
 
@@ -423,6 +454,34 @@ namespace SystemEye.ViewModels
                 ApiStatusText = "API Starten";
                 IsApiActive = false;
             }
+        }
+
+        [RelayCommand]
+        public async Task EnableAllSensorsAsync()
+        {
+            _isBulkUpdating = true;
+            foreach (var sensor in AvailableSensors)
+            {
+                sensor.IsEnabled = true;
+            }
+            _isBulkUpdating = false;
+
+            await SaveSensorConfigAsync();
+            await UpdateSensorsAsync();
+        }
+
+        [RelayCommand]
+        public async Task DisableAllSensorsAsync()
+        {
+            _isBulkUpdating = true;
+            foreach (var sensor in AvailableSensors)
+            {
+                sensor.IsEnabled = false;
+            }
+            _isBulkUpdating = false;
+
+            await SaveSensorConfigAsync();
+            await UpdateSensorsAsync();
         }
     }
 }

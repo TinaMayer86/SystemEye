@@ -5,10 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SystemEye.ViewModels;
-using ScottPlot;
-using System.Collections.Generic;
-using System.Linq;
-using System;
 
 namespace SystemEye
 {
@@ -80,8 +76,8 @@ namespace SystemEye
                     float finalValue = sensor.Value;
                     string unit = sensor.Format;
 
-                    // Logik für GPU-Speicher (Konvertierung in GB)
-                    if (sensor.Name.Contains("Memory") && sensor.HardwareType.Contains("Gpu")) // testen ob der wert richtig angezeigt wird
+                    // Logik für GPU-Speicher
+                    if (sensor.Name.Contains("Memory") && sensor.HardwareType.Contains("Gpu"))
                     {
                         if (finalValue > 1000)
                         {
@@ -93,12 +89,20 @@ namespace SystemEye
                             unit = "%";
                         }
                     }
+
+                    string lowerName = sensor.Name.ToLower();
+
+                    //Lüfter-Logik 
+                    if (lowerName.Contains("fan") || lowerName.Contains("rpm"))
+                    {
+                        // Wenn der Wert über 100 liegt sind es Umdrehungen (RPM). Sonst Prozent.
+                        unit = finalValue > 100 ? "RPM" : "%";
+                    }
+
                     // Fallback mit standard einheiten
                     if (string.IsNullOrEmpty(unit))
                     {
-                        string lowerName = sensor.Name.ToLower();
                         if (lowerName.Contains("temp")) unit = "°C";
-                        else if (lowerName.Contains("fan") || lowerName.Contains("rpm")) unit = "RPM";
                         else if (lowerName.Contains("load") || lowerName.Contains("utilization") || lowerName.Contains("controller")) unit = "%";
                         else if (lowerName.Contains("clock") || lowerName.Contains("freq")) unit = "MHz";
                         else if (lowerName.Contains("power") || lowerName.Contains("watt")) unit = "W";
@@ -126,6 +130,7 @@ namespace SystemEye
                     }
                     ui.Plot.Refresh();
                 }
+
                 // Entferne Karten für Sensoren, die nicht mehr aktiv sind
                 var keysToRemove = _sensorUIs.Keys.Where(k => !activeKeys.Contains(k)).ToList();
                 foreach (var key in keysToRemove)

@@ -1,9 +1,5 @@
 ﻿using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using SystemEye.Models;
 
 namespace SystemEye.Services
@@ -27,7 +23,8 @@ namespace SystemEye.Services
                 IsMemoryEnabled = true,
                 IsMotherboardEnabled = true,
                 IsNetworkEnabled = true,
-                IsStorageEnabled = true
+                IsStorageEnabled = true,
+                IsControllerEnabled = true
             };
             _computer.Open();
         }
@@ -61,13 +58,14 @@ namespace SystemEye.Services
                 {
                     hardware.Update();
 
-                    // Filtert virtuelle oder irrelevante Netzwerkadapter aus
+                    // Filtert virtuelle oder irrelevante Netzwerkadapter aus!
                     if (hardware.HardwareType == HardwareType.Network)
                     {
                         string n = hardware.Name.ToLower();
                         if (n.Contains("kernel") || n.Contains("microsoft") || n.Contains("pseudo") ||
                             n.Contains("qos") || n.Contains("wfp") || n.Contains("lightweight") ||
-                            n.Contains("miniport") || n.Contains("filter") || n.Contains("adapter 0"))
+                            n.Contains("miniport") || n.Contains("filter") || n.Contains("adapter 0") ||
+                            n.Contains("*") || n.Contains("virtual") || n.Contains("bluetooth") || n.Contains("isatap"))
                         {
                             continue;
                         }
@@ -127,23 +125,40 @@ namespace SystemEye.Services
             return await Task.Run(() =>
             {
                 var sensorList = new List<SensorDataModel>();
-                foreach (var hardware in _computer.Hardware)
+
+                // Hilfsfunktion, um Hardware und deren SubHardware rekursiv auszulesen
+                void ScanHardware(LibreHardwareMonitor.Hardware.IHardware hw)
                 {
-                    hardware.Update();
-                    foreach (var sensor in hardware.Sensors)
+                    hw.Update();
+
+                    // 1. Sensoren der aktuellen Hardware auslesen
+                    foreach (var sensor in hw.Sensors)
                     {
                         if (sensor.Value.HasValue)
                         {
                             sensorList.Add(new SensorDataModel(
                                 sensor.Name,
-                                hardware.HardwareType.ToString(),
-                                hardware.Name,
+                                hw.HardwareType.ToString(),
+                                hw.Name,
                                 sensor.Value.Value,
                                 GetFormatForSensor(sensor.SensorType)
                             ));
                         }
                     }
+
+                    // 2. WICHTIG: Unter-Hardware (SubHardware) scannen (z.B. für Mainboard-Lüfter-Chips!)
+                    foreach (var subHw in hw.SubHardware)
+                    {
+                        ScanHardware(subHw);
+                    }
                 }
+
+                // Hauptschleife durch alle obersten Systemkomponenten
+                foreach (var hardware in _computer.Hardware)
+                {
+                    ScanHardware(hardware);
+                }
+
                 return sensorList;
             });
         }
@@ -162,7 +177,7 @@ namespace SystemEye.Services
                 SensorType.Temperature => "°C",
                 SensorType.Clock => "MHz",
                 SensorType.Load => "%",
-                SensorType.Fan => "RPM",
+                SensorType.Fan => "%",
                 SensorType.Power => "W",
                 SensorType.Voltage => "V",
                 SensorType.Data => "GB",

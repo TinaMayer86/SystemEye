@@ -142,7 +142,7 @@
                             <materialDesign:Chip Content="{Binding NextUpdateText}"
                                                  ToolTip="Zeit bis zur nächsten Datenbank-Speicherung"
                                                  Foreground="{DynamicResource MaterialDesignBody}">
-                                <materialDesign:Chip.Icon> 
+                                <materialDesign:Chip.Icon>
                                     <materialDesign:PackIcon Kind="Clock"
                                                              Foreground="{DynamicResource MaterialDesignBody}"/>
                                 </materialDesign:Chip.Icon>
@@ -224,14 +224,25 @@
                                                Style="{StaticResource MaterialDesignBody2TextBlock}"
                                                Opacity="0.6" 
                                                TextWrapping="Wrap"/>
+                                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                             materialDesign:HintAssist.Hint="Sensoren durchsuchen (z.B. Fan oder GPU)..."
+                                             Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                                             Margin="0,16,0,0" />
                                 </StackPanel>
-                                <Button DockPanel.Dock="Bottom"
-                                        Command="{Binding SaveSensorConfigCommand}"
-                                        Content="Konfiguration Speichern"
-                                        Style="{StaticResource MaterialDesignFlatButton}"
-                                        Margin="0,16,0,0"
-                                        HorizontalAlignment="Right"
-                                        materialDesign:ButtonAssist.CornerRadius="10"/>
+                                <StackPanel DockPanel.Dock="Bottom" 
+                                            Orientation="Horizontal" 
+                                            HorizontalAlignment="Right" 
+                                            Margin="0,16,0,0">
+                                    <Button Command="{Binding EnableAllSensorsCommand}"
+                                                    Content="Alle Sensoren an"
+                                                    Style="{StaticResource MaterialDesignFlatButton}"
+                                                    Margin="0,0,8,0"
+                                                    materialDesign:ButtonAssist.CornerRadius="10"/>
+                                    <Button Command="{Binding DisableAllSensorsCommand}"
+                                                    Content="Alle Sensoren aus"
+                                                    Style="{StaticResource MaterialDesignFlatButton}"
+                                                    materialDesign:ButtonAssist.CornerRadius="10"/>
+                                </StackPanel>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding AvailableSensors}">
                                         <ItemsControl.ItemTemplate>

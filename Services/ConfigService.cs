@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using System.IO;
-using System.Text.Json;
 using SystemEye.Models;
 
 namespace SystemEye.Services
