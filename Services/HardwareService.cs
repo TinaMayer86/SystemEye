@@ -90,8 +90,8 @@ namespace SystemEye.Services
                             infoList.Add($"RAM-Modul: {hardware.Name} @ {speed}");
                         }
                     }
-                    else if (hardware.HardwareType == HardwareType.GpuNvidia || 
-                             hardware.HardwareType == HardwareType.GpuAmd || 
+                    else if (hardware.HardwareType == HardwareType.GpuNvidia ||
+                             hardware.HardwareType == HardwareType.GpuAmd ||
                              hardware.HardwareType == HardwareType.GpuIntel)
                     {
                         var vramSensor = hardware.Sensors.FirstOrDefault(s => s.Name.Contains("Memory Total"));

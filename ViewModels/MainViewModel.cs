@@ -1,12 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using SystemEye.Models;
 using SystemEye.Services;
@@ -129,7 +122,7 @@ namespace SystemEye.ViewModels
             var sensors = await _hardwareService.GetImportantSensorsAsync();
 
             // Abgleich mit der Konfiguration aus dem SettingsViewModel
-            var enabledSensors = sensors.Where(s => 
+            var enabledSensors = sensors.Where(s =>
             SettingsVM.AvailableSensors.Any(c => c.Name == s.Name && c.IsEnabled)).ToList();
 
             Application.Current.Dispatcher.Invoke(() =>
