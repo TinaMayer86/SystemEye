@@ -75,6 +75,7 @@ namespace SystemEye.Services
                     {
                         if (hardware.Name.Contains("Virtual")) continue;
 
+                        // Rechnet den genutzen und verfügbaren RAM zusammen
                         double used = hardware.Sensors.FirstOrDefault(s => s.Name == "Memory Used")?.Value ?? 0;
                         double avail = hardware.Sensors.FirstOrDefault(s => s.Name == "Memory Available")?.Value ?? 0;
                         double total = used + avail;
@@ -85,11 +86,13 @@ namespace SystemEye.Services
                         }
                         else
                         {
-                            string speed = detectedSpeed > 0 ? $"{(detectedSpeed * 2):F0} MHz" : "N/V";
-                            infoList.Add($"{hardware.Name}: 16,0 GB @ {speed}");
+                            string speed = detectedSpeed > 0 ? $"{detectedSpeed:F0} MHz" : "N/V";
+                            infoList.Add($"RAM-Modul: {hardware.Name} @ {speed}");
                         }
                     }
-                    else if (hardware.HardwareType == HardwareType.GpuNvidia || hardware.HardwareType == HardwareType.GpuAmd)
+                    else if (hardware.HardwareType == HardwareType.GpuNvidia || 
+                             hardware.HardwareType == HardwareType.GpuAmd || 
+                             hardware.HardwareType == HardwareType.GpuIntel)
                     {
                         var vramSensor = hardware.Sensors.FirstOrDefault(s => s.Name.Contains("Memory Total"));
                         float vram = vramSensor?.Value ?? 0;
@@ -131,7 +134,6 @@ namespace SystemEye.Services
                 {
                     hw.Update();
 
-                    // 1. Sensoren der aktuellen Hardware auslesen
                     foreach (var sensor in hw.Sensors)
                     {
                         if (sensor.Value.HasValue)
@@ -145,15 +147,11 @@ namespace SystemEye.Services
                             ));
                         }
                     }
-
-                    // 2. WICHTIG: Unter-Hardware (SubHardware) scannen (z.B. für Mainboard-Lüfter-Chips!)
                     foreach (var subHw in hw.SubHardware)
                     {
                         ScanHardware(subHw);
                     }
                 }
-
-                // Hauptschleife durch alle obersten Systemkomponenten
                 foreach (var hardware in _computer.Hardware)
                 {
                     ScanHardware(hardware);
@@ -170,7 +168,7 @@ namespace SystemEye.Services
         /// <returns>
         /// Gibt die Einheit als String zurück (z. B. °C, MHz, %).
         /// </returns>
-        private static string GetFormatForSensor(SensorType type) // teste static!
+        private static string GetFormatForSensor(SensorType type)
         {
             return type switch
             {

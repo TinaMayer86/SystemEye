@@ -1,22 +1,28 @@
-﻿using MaterialDesignThemes.Wpf;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using MaterialDesignThemes.Wpf;
 using ScottPlot.WPF;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using SystemEye.Messages;
 using SystemEye.ViewModels;
 
 namespace SystemEye
 {
     /// <summary>
-    /// Logik für das Hauptfenster. Verfaltet die dynamische Erstellung von Sensorkarten
-    /// und die Echtzeit-Visualisierung der Daten mittels ScottPlot.
+    /// Hauptfenster der Anwendung, das die Live‑Sensoransicht darstellt und dynamisch
+    /// UI‑Elemente für alle aktiven Sensoren erzeugt. Reagiert auf eingehende
+    /// Live‑Datenmeldungen des ViewModels, aktualisiert Werte und Diagramme in
+    /// Echtzeit und verwaltet Layout, Theme‑Umschaltung sowie grundlegende
+    /// Fensterinteraktionen.
     /// </summary>
     public partial class MainWindow : Window
     {
         private MainViewModel? _mainViewModel;
 
-        // Hilfsklasse zur Verwaltung der UI-Komponenten pro Sensor
         private class SensorUI
         {
             public Card MainCard { get; set; } = null!;
@@ -34,21 +40,27 @@ namespace SystemEye
         {
             InitializeComponent();
 
-            // Dependency Injection für das ViewModel auflösen
             if (Application.Current is App myApp)
             {
                 _mainViewModel = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<MainViewModel>(myApp.Services);
                 if (_mainViewModel != null)
                 {
                     DataContext = _mainViewModel;
-                    _mainViewModel.DataUpdated += OnViewModelDataUpdated;
                 }
             }
+
+            // Beim Messenger anmelden, um den Graphen zu zeichnen
+            WeakReferenceMessenger.Default.Register<LiveDataUpdatedMessage>(this, (recipient, message) =>
+            {
+                OnViewModelDataUpdated();
+            });
         }
 
         /// <summary>
-        /// Wird aufgerufen, wenn das ViewModel neue Sensordaten liefert.
-        /// Aktualisiert die Charts oder erstellt neue Karten, falls Sensoren hinzukommen.
+        /// Aktualisiert die UI‑Darstellung aller aktiven Sensoren, sobald neue
+        /// Live‑Sensordaten vorliegen. Erstellt fehlende Sensor‑Karten dynamisch,
+        /// aktualisiert Werte und Diagramme und entfernt nicht mehr aktive Sensoren
+        /// aus der Ansicht.
         /// </summary>
         private void OnViewModelDataUpdated()
         {
@@ -58,12 +70,12 @@ namespace SystemEye
 
                 var activeKeys = new HashSet<string>();
 
-                foreach (var sensor in _mainViewModel.CurrentSensors)
+                // NEU: Greift nun auf LiveVM zu
+                foreach (var sensor in _mainViewModel.LiveVM.CurrentSensors)
                 {
                     string key = $"{sensor.HardwareType}_{sensor.Name}";
                     activeKeys.Add(key);
 
-                    // Neue Karte erstellen, falls der Sensor zum ersten Mal auftaucht!
                     if (!_sensorUIs.ContainsKey(key))
                     {
                         var sensorUI = CreateSensorCard(sensor);
@@ -72,11 +84,9 @@ namespace SystemEye
                     }
 
                     var ui = _sensorUIs[key];
-
                     float finalValue = sensor.Value;
                     string unit = sensor.Format;
 
-                    // Logik für GPU-Speicher
                     if (sensor.Name.Contains("Memory") && sensor.HardwareType.Contains("Gpu"))
                     {
                         if (finalValue > 1000)
@@ -92,16 +102,14 @@ namespace SystemEye
 
                     string lowerName = sensor.Name.ToLower();
 
-                    //Lüfter-Logik 
                     if (lowerName.Contains("fan") || lowerName.Contains("rpm"))
                     {
-                        // Wenn der Wert über 100 liegt sind es Umdrehungen (RPM). Sonst Prozent.
                         unit = finalValue > 100 ? "RPM" : "%";
                     }
 
-                    // Fallback mit standard einheiten
                     if (string.IsNullOrEmpty(unit))
                     {
+                        // Formatkennzeichnungen
                         if (lowerName.Contains("temp")) unit = "°C";
                         else if (lowerName.Contains("load") || lowerName.Contains("utilization") || lowerName.Contains("controller")) unit = "%";
                         else if (lowerName.Contains("clock") || lowerName.Contains("freq")) unit = "MHz";
@@ -112,7 +120,7 @@ namespace SystemEye
 
                     ui.ValueText.Text = $"{finalValue:F1} {unit}".Trim();
                     ui.DataBuffer[ui.NextIndex] = finalValue;
-                    ui.CurrentLine.X = ui.NextIndex; // Rote vertikale Linie mitbewegen
+                    ui.CurrentLine.X = ui.NextIndex;
 
                     ui.NextIndex++;
                     if (ui.NextIndex >= ui.DataBuffer.Length)
@@ -120,7 +128,7 @@ namespace SystemEye
                         ui.NextIndex = 0;
                     }
 
-                    if (unit == "%") // Skalierung anpassen: Prozent-Sensoren fest auf 0-100, Rest automatisch
+                    if (unit == "%")
                     {
                         ui.Plot.Plot.Axes.SetLimitsY(0, 100);
                     }
@@ -131,7 +139,6 @@ namespace SystemEye
                     ui.Plot.Refresh();
                 }
 
-                // Entferne Karten für Sensoren, die nicht mehr aktiv sind
                 var keysToRemove = _sensorUIs.Keys.Where(k => !activeKeys.Contains(k)).ToList();
                 foreach (var key in keysToRemove)
                 {
@@ -142,11 +149,10 @@ namespace SystemEye
         }
 
         /// <summary>
-        /// Erstellt eine neue MaterialDesign-Card mit integriertem ScottPlot-Chart
+        /// Erstellt eine neue UI‑Karte für einen Sensor, einschließlich Textinformationen
+        /// und eines Live‑Diagramms. Initialisiert alle grafischen Elemente und legt den
+        /// Datenpuffer für die Verlaufskurve an.
         /// </summary>
-        /// <returns>
-        /// Ein SensorUI-Objekt zur späteren Aktualisierung
-        /// </returns>
         private SensorUI CreateSensorCard(Models.SensorDataModel sensor)
         {
             var ui = new SensorUI();
@@ -167,7 +173,6 @@ namespace SystemEye
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
 
-            // Linke Seite: Namen und Werte
             var infoStack = new StackPanel
             {
                 VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -201,7 +206,6 @@ namespace SystemEye
             Grid.SetColumn(infoStack, 0);
             grid.Children.Add(infoStack);
 
-            // Rechte Seite: ScottPlot Chart
             var border = new Border
             {
                 Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(12, 0, 0, 0)),
@@ -211,7 +215,6 @@ namespace SystemEye
             ui.Plot = new WpfPlot { Margin = new Thickness(5) };
             ui.Plot.UserInputProcessor.IsEnabled = false;
 
-            // Chart-Styling (ohne Achsen)
             ui.Plot.Plot.Axes.Bottom.IsVisible = false;
             ui.Plot.Plot.Axes.Left.IsVisible = false;
             ui.Plot.Plot.Axes.Right.IsVisible = false;
@@ -237,7 +240,11 @@ namespace SystemEye
             return ui;
         }
 
-        // ---- Window-Managment (Theme, Drag, Buttons) ---
+        /// <summary>
+        /// Schaltet das Anwendungsdesign zwischen hellem und dunklem Modus um.
+        /// Liest den aktuellen Zustand des Theme‑Toggles aus, setzt das entsprechende
+        /// Basis‑Theme und aktualisiert anschließend das globale MaterialDesign‑Theme.
+        /// </summary>
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
             var paletteHelper = new PaletteHelper();
@@ -246,9 +253,14 @@ namespace SystemEye
             paletteHelper.SetTheme(theme);
         }
 
+        /// <summary>
+        /// Leitet das Mausrad‑Scrollen einer verschachtelten ListBox an das übergeordnete
+        /// UI‑Element weiter, um ein natürliches Scrollverhalten zu ermöglichen.
+        /// Unterdrückt das Standardereignis und erzeugt ein neues MouseWheel‑Event
+        /// für das Parent‑Element.
+        /// </summary>
         private void ListBox_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            // Weitergabe des Scroll-Events an das übergeordnete Element
             if (!e.Handled)
             {
                 e.Handled = true;
@@ -262,13 +274,20 @@ namespace SystemEye
             }
         }
 
+        /// <summary>
+        /// Ermöglicht das Verschieben des Fensters, indem ein Linksklick auf die
+        /// benutzerdefinierte Titelleiste als Drag‑Bewegung interpretiert wird.
+        /// </summary>
         private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Left) this.DragMove();
         }
 
-        private void MinimizeButton_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
-
+        /// <summary>
+        /// Wechselt den Fensterzustand zwischen normaler und maximierter Ansicht.
+        /// Aktualisiert zusätzlich das Symbol des Maximize‑Buttons, um den aktuellen
+        /// Zustand visuell widerzuspiegeln.
+        /// </summary>
         private void MaximizeButton_Click(object sender, RoutedEventArgs e)
         {
             if (this.WindowState == WindowState.Maximized)
@@ -283,6 +302,14 @@ namespace SystemEye
             }
         }
 
+        /// <summary>
+        /// Minimiert das Hauptfenster, wenn der entsprechende Button ausgelöst wird.
+        /// </summary>
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e) => this.WindowState = WindowState.Minimized;
+
+        /// <summary>
+        /// Schließt das Hauptfenster und beendet damit die aktuelle Anwendungssitzung.
+        /// </summary>
         private void CloseButton_Click(object sender, RoutedEventArgs e) => this.Close();
     }
 }

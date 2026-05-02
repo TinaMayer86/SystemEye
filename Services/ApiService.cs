@@ -4,11 +4,21 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 using SystemEye.ViewModels;
 
 namespace SystemEye.Services
 {
+    /// <summary>
+    /// Verwaltet den Lebenszyklus der internen REST‑API, einschließlich Starten,
+    /// Stoppen und Fehlerbehandlung. Stellt die HTTP‑Endpunkte für Live‑Sensorwerte
+    /// und Hardware‑Informationen bereit und konfiguriert Logging, Swagger sowie
+    /// die Kestrel‑Serverumgebung.
+    /// </summary>
     public class ApiService
     {
         private IHost? _host;
@@ -23,6 +33,19 @@ namespace SystemEye.Services
 
         public bool IsRunning => _host != null;
 
+        /// <summary>
+        /// Startet die interne REST‑API, konfiguriert den Kestrel‑Webserver,
+        /// richtet Swagger sowie die HTTP‑Endpunkte ein und aktiviert die
+        /// zentrale Fehlerbehandlung. Der Startvorgang wird nur ausgeführt,
+        /// wenn die API noch nicht läuft und der gewünschte Port verfügbar ist.
+        /// </summary>
+        /// <param name="port">
+        /// Der TCP‑Port, auf dem die REST‑API gestartet werden soll.
+        /// Standardwert ist 5000.
+        /// </param>
+        /// <returns>
+        /// Ein Task, das den asynchronen Startvorgang der API repräsentiert.
+        /// </returns>
         public async Task StartApiAsync(int port = 5000)
         {
             try
@@ -36,18 +59,16 @@ namespace SystemEye.Services
 
                 var builder = WebApplication.CreateBuilder();
 
-                // Logger aufräumen
-                builder.Logging.ClearProviders();
-                builder.Logging.AddConsole();
+                builder.Logging.ClearProviders(); // Wirft alle Logger raus
+                builder.Logging.AddConsole(); // Fügt den Logger für die Konsole hinzu
 
-                builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddSwaggerGen();
+                builder.Services.AddEndpointsApiExplorer(); // Sucht im code nach API-Routen(endpunkten)
+                builder.Services.AddSwaggerGen(); // Sammelt informationen für die API
 
-                builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(port));
+                builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(port)); // Macht die API im ganzen netzwerk sichtbar
 
                 var app = builder.Build();
 
-                // Middleware für Fehlerbehandlung
                 app.Use(async (context, next) =>
                 {
                     try
@@ -73,7 +94,7 @@ namespace SystemEye.Services
                 app.MapGet("/sensors", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.CurrentSensors;
+                    return viewModel.LiveVM.CurrentSensors;
                 })
                 .WithSummary("Live-Sensordaten abrufen")
                 .WithDescription("Gibt eine Liste aller aktuell aktiven Hardware-Sensoren zurück.");
@@ -81,7 +102,7 @@ namespace SystemEye.Services
                 app.MapGet("/hardware", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.SystemInformation;
+                    return viewModel.InfoVM.SystemInformation;
                 })
                 .WithSummary("Hardware-Details abrufen")
                 .WithDescription("Gibt die detaillierte Hardware-Konfiguration des Systems zurück.");
@@ -99,6 +120,15 @@ namespace SystemEye.Services
             }
         }
 
+        /// <summary>
+        /// Stoppt die laufende REST‑API und führt einen kontrollierten Shutdown des
+        /// Kestrel‑Webservers durch. Ausstehende Vorgänge erhalten eine kurze
+        /// Abschlussfrist, bevor die Ressourcen freigegeben und der Host zurückgesetzt
+        /// werden.
+        /// </summary>
+        /// <returns>
+        /// Ein Task, das den asynchronen Beendigungsprozess der API repräsentiert.
+        /// </returns>
         public async Task StopApiAsync()
         {
             if (_host is WebApplication app)
@@ -119,7 +149,18 @@ namespace SystemEye.Services
             }
         }
 
-        private bool IsPortInUse(int port)
+        /// <summary>
+        /// Prüft, ob der angegebene TCP‑Port bereits von einem anderen Prozess
+        /// verwendet wird. Die Methode durchsucht dazu alle aktiven TCP‑Listener
+        /// des Systems und gibt an, ob der Port belegt ist.
+        /// </summary>
+        /// <param name="port">
+        /// Der zu prüfende TCP‑Port.
+        /// </param>
+        /// <returns>
+        /// <c>true</c>, wenn der Port bereits verwendet wird; andernfalls <c>false</c>.
+        /// </returns>
+        private static bool IsPortInUse(int port)
         {
             var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
             var tcpConnInfoArray = ipGlobalProperties.GetActiveTcpListeners();

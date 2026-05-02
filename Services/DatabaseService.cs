@@ -11,18 +11,17 @@ namespace SystemEye.Services
     /// </summary>
     public class DatabaseService
     {
-        private DatabaseConfig _config;
+        private AppConfig _config;
         private bool _isInitialized = false;
         private readonly ILogger<DatabaseService> _logger;
 
-        public DatabaseService(DatabaseConfig config, ILogger<DatabaseService> logger)
+        public DatabaseService(AppConfig config, ILogger<DatabaseService> logger)
         {
             _config = config;
             _logger = logger;
         }
 
-        // Aktualisiert die Konfiguration
-        public void UpdateConfig(DatabaseConfig newConfig) => _config = newConfig;
+        public void UpdateConfig(AppConfig newConfig) => _config = newConfig; // Aktualisiert die Konfiguration
 
         /// <summary>
         /// Erstellt die Datenbankdatei und die Tabellenstruktur, falls nicht vorhanden.
