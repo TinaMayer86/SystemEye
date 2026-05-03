@@ -74,7 +74,7 @@ namespace SystemEye.ViewModels
             await SettingsVM.LoadSensorConfigAsync();
             await HistoryVM.LoadDatabaseDataAsync();
 
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(0.5));
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(0.5)); // Aktualisierungszeit
             int halfSecondTicks = 0;
 
             while (await timer.WaitForNextTickAsync())
@@ -119,6 +119,8 @@ namespace SystemEye.ViewModels
         /// </summary>
         private async Task UpdateSensorsAsync()
         {
+            if (Application.Current == null) return; // Sicherheits-Check!
+
             var sensors = await _hardwareService.GetImportantSensorsAsync();
 
             // Abgleich mit der Konfiguration aus dem SettingsViewModel
