@@ -119,7 +119,7 @@ namespace SystemEye.ViewModels
         /// </summary>
         private async Task UpdateSensorsAsync()
         {
-            if (Application.Current == null) return; // Sicherheits-Check!
+            if (Application.Current == null) return;        // Sicherheits-Check! Wenn schon am schließen dann Abbrechen
 
             var sensors = await _hardwareService.GetImportantSensorsAsync();
 
@@ -127,7 +127,7 @@ namespace SystemEye.ViewModels
             var enabledSensors = sensors.Where(s =>
             SettingsVM.AvailableSensors.Any(c => c.Name == s.Name && c.IsEnabled)).ToList();
 
-            Application.Current.Dispatcher.Invoke(() =>
+            Application.Current?.Dispatcher?.Invoke(() =>    // Sicherheits-Check mit ? nur ausführen wenn Application.Current und Dispatcher noch existieren
             {
                 foreach (var s in enabledSensors)
                 {
