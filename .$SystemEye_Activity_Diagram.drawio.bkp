@@ -1,9 +1,12 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
   <diagram name="Seite-1" id="5_05fN305wy1XWAOeZoP">
-    <mxGraphModel dx="1828" dy="1132" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="3108" dy="1924" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="akB-VLkl2brarblXfuD--83" parent="1" style="rounded=1;whiteSpace=wrap;arcSize=50;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Programm startet" vertex="1">
+          <mxGeometry height="39" width="151" x="404" y="20" as="geometry" />
+        </mxCell>
         <mxCell id="akB-VLkl2brarblXfuD--84" parent="1" style="whiteSpace=wrap;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="App.xaml.cs" vertex="1">
           <mxGeometry height="54" width="148" x="405" y="109" as="geometry" />
         </mxCell>
@@ -82,6 +85,11 @@
         <mxCell id="akB-VLkl2brarblXfuD--101" parent="1" style="whiteSpace=wrap;strokeWidth=2;fillColor=light-dark(#eeeeee,#1f2020);strokeColor=light-dark(#999999,#cccccc);fontColor=light-dark(#333333,#cccccc);" value="Puffer leeren&#xa;Countdown zurücksetzen" vertex="1">
           <mxGeometry height="78" width="239" x="806" y="1752" as="geometry" />
         </mxCell>
+        <mxCell id="akB-VLkl2brarblXfuD--102" edge="1" parent="1" source="akB-VLkl2brarblXfuD--83" style="curved=1;startArrow=none;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;rounded=0;" target="akB-VLkl2brarblXfuD--84" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
         <mxCell id="akB-VLkl2brarblXfuD--103" edge="1" parent="1" source="akB-VLkl2brarblXfuD--84" style="curved=1;startArrow=none;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;rounded=0;" target="akB-VLkl2brarblXfuD--85" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points" />
@@ -138,14 +146,6 @@
         <mxCell id="akB-VLkl2brarblXfuD--130" connectable="0" parent="akB-VLkl2brarblXfuD--129" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Nein" vertex="1">
           <mxGeometry relative="1" x="-0.2336" y="1" as="geometry">
             <mxPoint as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="et212Sieh9cNGFaOgDzI-1" parent="1" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
-          <mxGeometry height="59" width="59" x="449.5" y="9" as="geometry" />
-        </mxCell>
-        <mxCell id="et212Sieh9cNGFaOgDzI-2" edge="1" parent="1" source="et212Sieh9cNGFaOgDzI-1" style="edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" target="akB-VLkl2brarblXfuD--84" value="">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="241" y="431" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>

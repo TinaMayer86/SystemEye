@@ -40,7 +40,7 @@ namespace SystemEye.Services
             return await Task.Run(() =>
             {
                 var infoList = new List<string>();
-                double detectedSpeed = 0;
+                //double detectedSpeed = 0;
 
                 // Durchlauf zur Ermittlung der Taktrate
                 foreach (var hardware in _computer.Hardware)
@@ -49,9 +49,6 @@ namespace SystemEye.Services
                     var speedSensor = hardware.Sensors.FirstOrDefault(s =>
                         s.SensorType == SensorType.Clock &&
                         (s.Name.Contains("Memory") || s.Name.Contains("Bus")));
-
-                    if (speedSensor?.Value > detectedSpeed)
-                        detectedSpeed = speedSensor.Value.Value;
                 }
 
                 foreach (var hardware in _computer.Hardware)
@@ -65,7 +62,7 @@ namespace SystemEye.Services
                         if (n.Contains("kernel") || n.Contains("microsoft") || n.Contains("pseudo") ||
                             n.Contains("qos") || n.Contains("wfp") || n.Contains("lightweight") ||
                             n.Contains("miniport") || n.Contains("filter") || n.Contains("adapter 0") ||
-                            n.Contains("*") || n.Contains("virtual") || n.Contains("bluetooth") || n.Contains("isatap"))
+                            n.Contains("*") || n.Contains("virtual") || n.Contains("isatap"))
                         {
                             continue;
                         }
@@ -86,8 +83,7 @@ namespace SystemEye.Services
                         }
                         else
                         {
-                            string speed = detectedSpeed > 0 ? $"{detectedSpeed:F0} MHz" : "N/V";
-                            infoList.Add($"RAM-Modul: {hardware.Name} @ {speed}");
+                            infoList.Add($"RAM-Modul: {hardware.Name} ");
                         }
                     }
                     else if (hardware.HardwareType == HardwareType.GpuNvidia ||

@@ -74,13 +74,17 @@ namespace SystemEye.Services
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "API Laufzeit-Fehler bei {Path}", context.Request.Path);
-                        context.Response.StatusCode = 500;
-                        await context.Response.WriteAsJsonAsync(new
+
+                        if (!context.Response.HasStarted)
                         {
-                            error = "Internal Server Error",
-                            message = ex.Message,
-                            timestamp = DateTime.Now
-                        });
+                            context.Response.StatusCode = 500;
+                            await context.Response.WriteAsJsonAsync(new
+                            {
+                                error = "Internal Server Error",
+                                message = ex.Message,
+                                timestamp = DateTime.Now
+                            });
+                        }
                     }
                 });
 
@@ -90,7 +94,7 @@ namespace SystemEye.Services
                 app.MapGet("/sensors", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.LiveVM.CurrentSensors;
+                    return viewModel.LiveVM.CurrentSensors.ToList();
                 })
                 .WithSummary("Live-Sensordaten abrufen")
                 .WithDescription("Gibt eine Liste aller aktuell aktiven Hardware-Sensoren zurück.");
@@ -98,7 +102,7 @@ namespace SystemEye.Services
                 app.MapGet("/hardware", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.InfoVM.SystemInformation;
+                    return viewModel.InfoVM.SystemInformation.ToList();
                 })
                 .WithSummary("Hardware-Details abrufen")
                 .WithDescription("Gibt die detaillierte Hardware-Konfiguration des Systems zurück.");

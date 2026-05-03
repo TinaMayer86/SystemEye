@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
   <diagram name="Seite-1" id="Tcm3Yqda-rR25RnD9vFz">
-    <mxGraphModel dx="3417" dy="2772" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="4901" dy="3709" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -210,7 +210,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="bU8a1Zn8-QIvmQUNbOX_-9" parent="1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=41;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;text-wrap-mode: nowrap;&quot;&gt;&amp;lt;&amp;lt;Application&amp;gt;&amp;gt;&lt;/span&gt;&lt;br style=&quot;padding: 0px; margin: 0px; text-wrap-mode: nowrap;&quot;&gt;&lt;span style=&quot;text-wrap-mode: nowrap;&quot;&gt;App&lt;/span&gt;" vertex="1">
-          <mxGeometry height="127" width="221" x="601" as="geometry" />
+          <mxGeometry height="127" width="221" x="601" y="-3" as="geometry" />
         </mxCell>
         <mxCell id="bU8a1Zn8-QIvmQUNbOX_-10" parent="bU8a1Zn8-QIvmQUNbOX_-9" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;text-wrap-mode: nowrap;&quot;&gt;+ IServiceProvider Services&lt;/span&gt;" vertex="1">
           <mxGeometry height="26" width="221" y="41" as="geometry" />
@@ -243,7 +243,7 @@
           <mxGeometry height="26" width="140" y="143" as="geometry" />
         </mxCell>
         <mxCell id="bU8a1Zn8-QIvmQUNbOX_-33" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="AggregatedSensorData" vertex="1">
-          <mxGeometry height="208" width="140" x="-580" y="-171" as="geometry" />
+          <mxGeometry height="208" width="140" x="-582" y="-197" as="geometry" />
         </mxCell>
         <mxCell id="bU8a1Zn8-QIvmQUNbOX_-34" parent="bU8a1Zn8-QIvmQUNbOX_-33" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ DateTime Timestamp" vertex="1">
           <mxGeometry height="26" width="140" y="26" as="geometry" />
@@ -361,7 +361,7 @@
           <mxGeometry height="26" width="410" y="60" as="geometry" />
         </mxCell>
         <mxCell id="M1l_F8Hs2e-THGbF2VIV-70" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="&lt;span style=&quot;font-weight: 700; text-wrap-mode: nowrap;&quot;&gt;AppConfig&lt;/span&gt;" vertex="1">
-          <mxGeometry height="78" width="195" x="306" y="-106" as="geometry" />
+          <mxGeometry height="78" width="195" x="301" y="-140" as="geometry" />
         </mxCell>
         <mxCell id="M1l_F8Hs2e-THGbF2VIV-71" parent="M1l_F8Hs2e-THGbF2VIV-70" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ string Database" vertex="1">
           <mxGeometry height="26" width="195" y="26" as="geometry" />
