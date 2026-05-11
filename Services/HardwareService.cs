@@ -124,7 +124,6 @@ namespace SystemEye.Services
             return await Task.Run(() =>
             {
                 var sensorList = new List<SensorDataModel>();
-
                 // Hilfsfunktion, um Hardware und deren SubHardware rekursiv auszulesen
                 void ScanHardware(LibreHardwareMonitor.Hardware.IHardware hw)
                 {

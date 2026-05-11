@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using System.Net.NetworkInformation;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Net.NetworkInformation;
+using SystemEye.Models;
 using SystemEye.ViewModels;
 
 namespace SystemEye.Services
@@ -64,6 +65,10 @@ namespace SystemEye.Services
                 builder.WebHost.ConfigureKestrel(o => o.ListenAnyIP(port)); // Macht die API im ganzen netzwerk sichtbar
 
                 var app = builder.Build();
+                
+                // Für die eigene HTML
+                app.UseDefaultFiles();
+                app.UseStaticFiles();
 
                 app.Use(async (context, next) =>
                 {
@@ -94,7 +99,7 @@ namespace SystemEye.Services
                 app.MapGet("/sensors", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.LiveVM.CurrentSensors.ToList();
+                    return viewModel.LiveVM?.CurrentSensors?.ToList() ?? new List<SensorDataModel>();
                 })
                 .WithSummary("Live-Sensordaten abrufen")
                 .WithDescription("Gibt eine Liste aller aktuell aktiven Hardware-Sensoren zurück.");

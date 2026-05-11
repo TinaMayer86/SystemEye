@@ -27,7 +27,7 @@ namespace SystemEye.ViewModels
         private readonly string _sensorSettingPath = Path.Combine("Config", "sensors.json");
         private bool _isBulkUpdating = false;
 
-        public string ApiNetwork => $"http://{GetLocalIPAddress()}:5000/swagger";
+        public string ApiNetwork => $"http://{GetLocalIPAddress()}:5000";
 
         // Event, um dem MainViewModel mitzuteilen, dass sich die Konfiguration geändert hat
         public event Action? ConfigChanged;

@@ -28,6 +28,7 @@ namespace SystemEye.ViewModels
 
         // Interne Buffer + Zustände für den Background-Loop
         private readonly List<SensorDataModel> _minuteBuffer = new();
+        private readonly List<SensorDataModel> _activeSensors = new();
         private DateTime _lastDbSave = DateTime.Now;
         private int _secondsUntilUpdate = SecondCounter;
 
@@ -74,19 +75,11 @@ namespace SystemEye.ViewModels
             await SettingsVM.LoadSensorConfigAsync();
             await HistoryVM.LoadDatabaseDataAsync();
 
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(0.5)); // Aktualisierungszeit
-            int halfSecondTicks = 0;
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1)); // Aktualisierungszeit
 
             while (await timer.WaitForNextTickAsync())
             {
                 await UpdateSensorsAsync();
-
-                halfSecondTicks++;
-                if (halfSecondTicks >= 2) // Jede Sekunde!
-                {
-                    UpdateCountdown();
-                    halfSecondTicks = 0;
-                }
 
                 // Prüft, ob das Speicherintervall für die Datenbank erreicht wurde
                 if ((DateTime.Now - _lastDbSave).TotalSeconds >= SecondCounter)
@@ -123,18 +116,29 @@ namespace SystemEye.ViewModels
 
             var sensors = await _hardwareService.GetImportantSensorsAsync();
 
-            // Abgleich mit der Konfiguration aus dem SettingsViewModel
-            var enabledSensors = sensors.Where(s =>
-            SettingsVM.AvailableSensors.Any(c => c.Name == s.Name && c.IsEnabled)).ToList();
+            _activeSensors.Clear(); // Müllvermeidung, list wird geleert anstatt sie neu zumachen
 
-            Application.Current?.Dispatcher?.Invoke(() =>    // Sicherheits-Check mit ? nur ausführen wenn Application.Current und Dispatcher noch existieren
+            foreach (var s in sensors)
             {
-                foreach (var s in enabledSensors)
+                foreach (var config in SettingsVM.AvailableSensors)
                 {
-                    _minuteBuffer.Add(s); // Sammelt Daten für die spätere Aggregation
+                    if (config.Name == s.Name && config.IsEnabled)
+                    {
+                        _activeSensors.Add(s);
+                        break;
+                    }
+                }
+            }
+
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                foreach (var s in _activeSensors)
+                {
+                    _minuteBuffer.Add(s);
                 }
             });
-            LiveVM.UpdateSensorData(enabledSensors);
+
+            LiveVM.UpdateSensorData(_activeSensors);
         }
 
         /// <summary>
