@@ -1,5 +1,6 @@
 ﻿using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
+using System.Collections;
 using SystemEye.Models;
 
 namespace SystemEye.Services
@@ -26,7 +27,14 @@ namespace SystemEye.Services
                 IsStorageEnabled = true,
                 IsControllerEnabled = true
             };
-            _computer.Open();
+            try
+            {
+                _computer.Open();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Fehler beim Laden der Sensoren");
+            }
         }
 
         /// <summary>

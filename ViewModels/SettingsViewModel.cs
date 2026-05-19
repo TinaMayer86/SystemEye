@@ -24,7 +24,8 @@ namespace SystemEye.ViewModels
         private readonly HardwareService _hardwareService;
         private readonly ILogger<SettingsViewModel> _logger;
 
-        private readonly string _sensorSettingPath = Path.Combine("Config", "sensors.json");
+        private readonly string _sensorSettingPath = "settings.json";
+
         private bool _isBulkUpdating = false;
 
         public string ApiNetwork => $"http://{GetLocalIPAddress()}:5000";

@@ -75,19 +75,36 @@ namespace SystemEye.ViewModels
             await SettingsVM.LoadSensorConfigAsync();
             await HistoryVM.LoadDatabaseDataAsync();
 
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1)); // Aktualisierungszeit
-
-            while (await timer.WaitForNextTickAsync())
+            _ = Task.Run(async () =>
             {
-                await UpdateSensorsAsync();
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
 
-                // Prüft, ob das Speicherintervall für die Datenbank erreicht wurde
-                if ((DateTime.Now - _lastDbSave).TotalSeconds >= SecondCounter)
+                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    await AggregateAndSaveToDatabaseAsync();
-                    _lastDbSave = DateTime.Now;
+                    try
+                    {
+                        await UpdateSensorsAsync();
+                        double elapsedSeconds = (DateTime.Now - _lastDbSave).TotalSeconds;
+                        if (elapsedSeconds >= SecondCounter)
+                        {
+                            await AggregateAndSaveToDatabaseAsync();
+                            _lastDbSave = DateTime.Now;
+                            elapsedSeconds = 0;
+                        }
+
+                        int restZeit = (int)Math.Max(0, SecondCounter - elapsedSeconds);
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            HistoryVM.NextUpdateText = $"{restZeit}s";
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Fehler in der Task.Run Timer-Schleife!");
+                    }
                 }
-            }
+            });
         }
 
         /// <summary>
