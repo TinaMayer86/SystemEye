@@ -1,5 +1,6 @@
 ﻿using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
+using OpenTK.Audio.OpenAL;
 using System.Collections;
 using SystemEye.Models;
 
@@ -127,34 +128,69 @@ namespace SystemEye.Services
         /// <returns>
         /// Liste von SensorDataModel-Objekten mit aktuellen Messwerten.
         /// </returns>
-        public async Task<List<SensorDataModel>> GetImportantSensorsAsync()
+        public async Task<List<SensorDataModel>> GetImportantSensorsAsync(List<SensorConfigModel>? activeConfig = null)
         {
             return await Task.Run(() =>
             {
                 var sensorList = new List<SensorDataModel>();
-                // Hilfsfunktion, um Hardware und deren SubHardware rekursiv auszulesen
+
                 void ScanHardware(LibreHardwareMonitor.Hardware.IHardware hw)
                 {
                     hw.Update();
 
                     foreach (var sensor in hw.Sensors)
                     {
+                        if (sensor.SensorType == SensorType.Control) continue;
+
                         if (sensor.Value.HasValue)
                         {
+                            float val = sensor.Value.Value;
+                            if (float.IsNaN(val) || float.IsInfinity(val)) continue;
+
+                            if (hw.HardwareType == HardwareType.Network && val == 0) continue;
+
+                            string format = GetFormatForSensor(sensor.SensorType);
+                            if (string.IsNullOrEmpty(format)) continue;
+
+                            string sensorName = sensor.Name;
+                            if (sensorName == "GPU Core")
+                            {
+                                if (sensor.SensorType == SensorType.Temperature)
+                                {
+                                    sensorName = "GPU Core Temperature";
+                                }
+                                else if (sensor.SensorType == SensorType.Load)
+                                {
+                                    sensorName = "GPU Core Load";
+                                }
+                            }
+
+                            if (activeConfig != null)
+                            {
+                                var isEnabled = activeConfig.Any(c =>
+                                    c.Name == sensorName &&
+                                    c.HardwareType == hw.HardwareType.ToString() &&
+                                    c.IsEnabled);
+
+                                if (!isEnabled) continue; // Wenn deaktiviert oder nicht konfiguriert -> überspringen
+                            }
+
                             sensorList.Add(new SensorDataModel(
-                                sensor.Name,
+                                sensorName,
                                 hw.HardwareType.ToString(),
-                                hw.Name,
-                                sensor.Value.Value,
-                                GetFormatForSensor(sensor.SensorType)
+                                sensor.SensorType.ToString(),
+                                val,
+                                format
                             ));
                         }
                     }
+
                     foreach (var subHw in hw.SubHardware)
                     {
                         ScanHardware(subHw);
                     }
                 }
+
                 foreach (var hardware in _computer.Hardware)
                 {
                     ScanHardware(hardware);
@@ -178,7 +214,7 @@ namespace SystemEye.Services
                 SensorType.Temperature => "°C",
                 SensorType.Clock => "MHz",
                 SensorType.Load => "%",
-                SensorType.Fan => "%",
+                SensorType.Fan => "RPM",
                 SensorType.Power => "W",
                 SensorType.Voltage => "V",
                 SensorType.Data => "GB",

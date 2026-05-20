@@ -20,11 +20,13 @@ namespace SystemEye.Services
     {
         private IHost? _host;
         private readonly IServiceProvider _serviceProvider;
+        private readonly LiveViewModel _liveViewModel;
         private readonly ILogger<ApiService> _logger;
 
-        public ApiService(IServiceProvider serviceProvider, ILogger<ApiService> logger)
+        public ApiService(IServiceProvider serviceProvider,LiveViewModel liveViewModel ,ILogger<ApiService> logger)
         {
             _serviceProvider = serviceProvider;
+            _liveViewModel = liveViewModel;
             _logger = logger;
         }
 
