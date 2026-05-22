@@ -134,7 +134,6 @@ namespace SystemEye.Services
             {
                 var sensorList = new List<SensorDataModel>();
 
-                // NEU: Zähler für doppelte Sensornamen (wie "D3D Copy") in diesem Durchlauf
                 var nameCounters = new Dictionary<string, int>();
 
                 void ScanHardware(LibreHardwareMonitor.Hardware.IHardware hw)
@@ -156,21 +155,17 @@ namespace SystemEye.Services
                             if (string.IsNullOrEmpty(format)) continue;
 
                             string sensorName = sensor.Name;
-
-                            // FIX PROBLEM 1: GPU Core konsistent auf Deutsch benennen
                             if (hw.HardwareType.ToString().StartsWith("Gpu") && sensorName == "GPU Core")
                             {
                                 if (sensor.SensorType == SensorType.Temperature)
                                 {
-                                    sensorName = "GPU Core Temperatur";
+                                    sensorName = "GPU Core Temperature";
                                 }
                                 else if (sensor.SensorType == SensorType.Load)
                                 {
-                                    sensorName = "GPU Core Auslastung";
+                                    sensorName = "GPU Core Load";
                                 }
                             }
-
-                            // FIX PROBLEM 2: Duplikate (z.B. "D3D Copy") eindeutig nummerieren
                             if (nameCounters.ContainsKey(sensorName))
                             {
                                 nameCounters[sensorName]++;

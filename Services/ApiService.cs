@@ -101,7 +101,7 @@ namespace SystemEye.Services
                 app.MapGet("/sensors", () =>
                 {
                     var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                    return viewModel.LiveVM?.CurrentSensors?.ToList() ?? new List<SensorDataModel>();
+                    return viewModel.LiveVM?.ApiSensorsSnapshot ?? new List<SensorDataModel>();
                 })
                 .WithSummary("Live-Sensordaten abrufen")
                 .WithDescription("Gibt eine Liste aller aktuell aktiven Hardware-Sensoren zurück.");
