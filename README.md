@@ -34,6 +34,5 @@ Das Projekt folgt einer sauberen, entkoppelten MVVM-Architektur (Model-View-View
 ### Voraussetzungen
 Da die Anwendung hardwarenah arbeitet, benötigt sie **Administratorrechte** unter Windows, um sensible Sensoren wie CPU-Temperaturen und Spannungen direkt aus den Registern der Hardware auszulesen.
 
-### Ausführen über Visual Studio
-1. Klone das Repository:
-   git clone [https://github.com/DEIN-BENUTZERNAME/SystemEye.git](https://github.com/DEIN-BENUTZERNAME/SystemEye.git)
+Klone das Repository:
+   git clone https://github.com/TinaMayer86/SystemEye.git
