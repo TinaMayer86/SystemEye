@@ -134,6 +134,9 @@ namespace SystemEye.Services
             {
                 var sensorList = new List<SensorDataModel>();
 
+                // NEU: Zähler für doppelte Sensornamen (wie "D3D Copy") in diesem Durchlauf
+                var nameCounters = new Dictionary<string, int>();
+
                 void ScanHardware(LibreHardwareMonitor.Hardware.IHardware hw)
                 {
                     hw.Update();
@@ -153,16 +156,29 @@ namespace SystemEye.Services
                             if (string.IsNullOrEmpty(format)) continue;
 
                             string sensorName = sensor.Name;
-                            if (sensorName == "GPU Core")
+
+                            // FIX PROBLEM 1: GPU Core konsistent auf Deutsch benennen
+                            if (hw.HardwareType.ToString().StartsWith("Gpu") && sensorName == "GPU Core")
                             {
                                 if (sensor.SensorType == SensorType.Temperature)
                                 {
-                                    sensorName = "GPU Core Temperature";
+                                    sensorName = "GPU Core Temperatur";
                                 }
                                 else if (sensor.SensorType == SensorType.Load)
                                 {
-                                    sensorName = "GPU Core Load";
+                                    sensorName = "GPU Core Auslastung";
                                 }
+                            }
+
+                            // FIX PROBLEM 2: Duplikate (z.B. "D3D Copy") eindeutig nummerieren
+                            if (nameCounters.ContainsKey(sensorName))
+                            {
+                                nameCounters[sensorName]++;
+                                sensorName = $"{sensorName} #{nameCounters[sensorName]}";
+                            }
+                            else
+                            {
+                                nameCounters[sensorName] = 1;
                             }
 
                             if (activeConfig != null)
